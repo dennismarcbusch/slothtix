@@ -275,6 +275,7 @@ def detail(ticket_id):
         kategorien_by_team=kategorien_by_team,
         kategorien_by_team_json=kategorien_by_team_json,
         TicketStatus=TicketStatus,
+        TicketPrioritaet=TicketPrioritaet,
         Sichtbarkeit=Sichtbarkeit,
         HistorienAktion=HistorienAktion,
     )
@@ -368,6 +369,31 @@ def change_status(ticket_id):
         db.session.commit()
         notify_status_changed(ticket, alter_status.value, neuer_status.value)
         flash("Status aktualisiert.", "success")
+
+    return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+
+
+@tickets_bp.route("/<int:ticket_id>/prioritaet", methods=["POST"])
+@login_required
+def change_priority(ticket_id):
+    ticket = db.get_or_404(Ticket, ticket_id)
+    if not _kann_ticket_verwalten(current_user, ticket):
+        abort(403)
+
+    try:
+        neue_prioritaet = TicketPrioritaet(request.form.get("prioritaet"))
+    except ValueError:
+        flash("Ungültige Priorität.", "error")
+        return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+
+    alte_prioritaet = ticket.prioritaet
+    if neue_prioritaet != alte_prioritaet:
+        ticket.prioritaet = neue_prioritaet
+        _log_history(
+            ticket, HistorienAktion.PRIORITAET_GEAENDERT, alte_prioritaet.value, neue_prioritaet.value
+        )
+        db.session.commit()
+        flash("Priorität aktualisiert.", "success")
 
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
 

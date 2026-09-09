@@ -416,3 +416,38 @@ def test_ersteller_filter_narrows_overview(app, client, admin_user, make_team, m
 
         assert "Ticket von Anderer" in response
         assert "Ticket von Admin" not in response
+
+
+def test_non_agent_cannot_change_priority(app, client, make_team, make_user):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        ersteller = make_user(anzeigename="Ersteller", email="e@example.local", ad_username="ersteller")
+        ticket = _create_ticket(db, team, category, ersteller)
+
+        login_as(client, ersteller)
+        response = client.post(f"/tickets/{ticket.id}/prioritaet", data={"prioritaet": "hoch"})
+
+        assert response.status_code == 403
+        assert db.session.get(Ticket, ticket.id).prioritaet == TicketPrioritaet.MITTEL
+
+
+def test_agent_can_change_priority_and_history_is_recorded(app, client, make_team, make_user):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        ersteller = make_user(anzeigename="Ersteller", email="e@example.local", ad_username="ersteller")
+        agent = make_user(anzeigename="Agent", email="agent@example.local", ad_username="agent", teams=[team])
+        ticket = _create_ticket(db, team, category, ersteller)
+
+        login_as(client, agent)
+        response = client.post(
+            f"/tickets/{ticket.id}/prioritaet", data={"prioritaet": "niedrig"}, follow_redirects=True
+        )
+
+        assert response.status_code == 200
+        updated = db.session.get(Ticket, ticket.id)
+        assert updated.prioritaet == TicketPrioritaet.NIEDRIG
+        assert len(updated.historie) == 1
+        assert updated.historie[0].alter_wert == "mittel"
+        assert updated.historie[0].neuer_wert == "niedrig"

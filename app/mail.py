@@ -16,7 +16,10 @@ def send_mail(to_address, subject, body):
 
     settings = Settings.get_or_create()
     if not settings.smtp_host:
-        current_app.logger.info(
+        # WARNING statt INFO: Gunicorn/Produktions-Setups filtern INFO oft
+        # weg, wodurch dieser (durchaus relevante) Hinweis sonst spurlos
+        # im Log verschwindet.
+        current_app.logger.warning(
             "SMTP nicht konfiguriert, E-Mail an %s nicht gesendet: %s",
             to_address,
             subject,

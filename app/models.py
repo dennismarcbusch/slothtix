@@ -37,6 +37,7 @@ class HistorienAktion(enum.Enum):
     STATUS_GEAENDERT = "status_geaendert"
     ZUGEWIESEN = "zugewiesen"
     TEAM_GEWECHSELT = "team_gewechselt"
+    PRIORITAET_GEAENDERT = "prioritaet_geaendert"
 
 
 team_memberships = db.Table(

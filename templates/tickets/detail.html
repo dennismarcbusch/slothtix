@@ -38,6 +38,17 @@
         <button type="submit">Ändern</button>
     </form>
 
+    <form method="post" action="{{ url_for('tickets.change_priority', ticket_id=ticket.id) }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Priorität</label>
+        <select name="prioritaet">
+            {% for prio in TicketPrioritaet %}
+            <option value="{{ prio.value }}" {% if ticket.prioritaet == prio %}selected{% endif %}>{{ prio.value }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Ändern</button>
+    </form>
+
     <form method="post" action="{{ url_for('tickets.assign', ticket_id=ticket.id) }}" class="inline-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Zuweisen an</label>
