@@ -30,3 +30,12 @@ class Config:
     LDAP_CA_CERT_PATH = os.environ.get("LDAP_CA_CERT_PATH")
     SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
     SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+
+    # Hinter einem TLS-terminierenden Reverse-Proxy (z. B. Caddy) setzen:
+    # Session-Cookie wird nur noch über HTTPS übertragen, und url_for(...,
+    # _external=True) (z. B. Ticket-Links in Benachrichtigungs-E-Mails)
+    # erzeugt https://-URLs statt http://. Lokal beim Entwickeln ohne
+    # Proxy/TLS auf false lassen, sonst funktioniert der Login nicht.
+    FORCE_HTTPS = os.environ.get("FORCE_HTTPS", "false").lower() == "true"
+    SESSION_COOKIE_SECURE = FORCE_HTTPS
+    PREFERRED_URL_SCHEME = "https" if FORCE_HTTPS else "http"

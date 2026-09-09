@@ -1,8 +1,8 @@
 services:
   slothtix:
     build: .
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - slothtix-instance:/app/instance
       # UCS-CA-Zertifikat für die LDAPS-Prüfung, siehe LDAP_CA_CERT_PATH
@@ -12,5 +12,20 @@ services:
       - .env
     restart: unless-stopped
 
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - slothtix
+    restart: unless-stopped
+
 volumes:
   slothtix-instance:
+  caddy-data:
+  caddy-config:
