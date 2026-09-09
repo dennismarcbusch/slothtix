@@ -10,6 +10,7 @@ import ssl
 from dataclasses import dataclass, field
 
 from flask import current_app
+from ldap3 import NONE as NO_INFO
 from ldap3 import Connection, Server, Tls
 from ldap3.core.exceptions import LDAPBindError, LDAPException, LDAPInvalidDnError
 from ldap3.utils.conv import escape_filter_chars
@@ -56,16 +57,19 @@ def _build_tls(ca_cert_path):
 
 def _default_connection_factory(settings):
     tls = _build_tls(current_app.config.get("LDAP_CA_CERT_PATH"))
-    # Kein get_info=ALL: wir lesen server.schema nirgendwo, aber ldap3
-    # würde mit geladenem Schema unseren Suchfilter strikt dagegen
-    # validieren - "sAMAccountName" existiert im (Open)LDAP-Schema von
-    # UCS nicht (nur im AD-Schema), was den Bind mit
-    # LDAPAttributeError zum Absturz bringen würde.
+    # get_info=NONE (explizit!): Server() holt per Default bereits
+    # get_info='SCHEMA', auch ohne dass man es angibt. Mit geladenem
+    # Schema validiert ldap3 unseren Suchfilter strikt dagegen -
+    # "sAMAccountName" existiert im (Open)LDAP-Schema von UCS nicht
+    # (nur im AD-Schema), was den Bind mit LDAPAttributeError zum
+    # Absturz bringt. Wir lesen server.schema nirgendwo, daher komplett
+    # deaktivieren statt nur "nicht explizit anfordern".
     server = Server(
         settings.ldap_server,
         port=settings.ldap_port,
         use_ssl=settings.ldap_use_ssl,
         tls=tls,
+        get_info=NO_INFO,
     )
 
     def factory(user_dn, password):
