@@ -5,6 +5,9 @@ services:
       - "8000:8000"
     volumes:
       - slothtix-instance:/app/instance
+      # UCS-CA-Zertifikat für die LDAPS-Prüfung, siehe LDAP_CA_CERT_PATH
+      # in .env - Datei muss auf dem Host unter ./certs/ liegen.
+      - ./certs:/app/certs:ro
     env_file:
       - .env
     restart: unless-stopped

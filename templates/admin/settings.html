@@ -12,6 +12,10 @@
         <legend>LDAP / UCS</legend>
         <div class="field">{{ form.ldap_server.label }} {{ form.ldap_server() }}</div>
         <div class="field">{{ form.ldap_port.label }} {{ form.ldap_port() }}</div>
+        <p class="hint">Bei UCS mit Active-Directory-kompatiblem Domänencontroller läuft LDAPS meist
+            nicht auf 636, sondern auf <strong>7636</strong> (Samba4 betreibt ein eigenes,
+            AD-kompatibles LDAP parallel zum normalen UCS-LDAP) - falls der Bind mit
+            "invalid credentials" fehlschlägt, obwohl DN/Passwort stimmen, zuerst 7636 probieren.</p>
         <div class="field checkbox-field">{{ form.ldap_use_ssl() }} {{ form.ldap_use_ssl.label }}</div>
         <div class="field">{{ form.ldap_base_dn.label }} {{ form.ldap_base_dn() }}</div>
         <div class="field">{{ form.ldap_bind_dn.label }} {{ form.ldap_bind_dn() }}</div>

@@ -24,5 +24,9 @@ class Config:
     # Geheimnisse für LDAP/SMTP kommen bewusst aus Env-Vars, nicht aus der
     # (admin-editierbaren) Settings-Tabelle - siehe REQUIREMENTS.md Abschnitt 5.
     LDAP_BIND_PASSWORD = os.environ.get("LDAP_BIND_PASSWORD")
+    # Pfad zur CA-Zertifikatsdatei (PEM) für die TLS-Prüfung der
+    # LDAPS-Verbindung, z. B. die UCS-eigene Root-CA. Ohne diesen Pfad
+    # wird das Server-Zertifikat nicht validiert (siehe ldap_service.py).
+    LDAP_CA_CERT_PATH = os.environ.get("LDAP_CA_CERT_PATH")
     SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
     SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"

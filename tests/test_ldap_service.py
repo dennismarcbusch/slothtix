@@ -81,3 +81,24 @@ def test_authenticate_handles_group_dn_with_escaped_comma():
 
     assert "IT-Agenten" in result.gruppen
     assert not any("Groups" in g for g in result.gruppen)
+
+
+def test_build_tls_without_ca_path_returns_none():
+    from app.ldap_service import _build_tls
+
+    assert _build_tls(None) is None
+
+
+def test_build_tls_with_ca_path_requires_verification(tmp_path):
+    import ssl
+
+    from app.ldap_service import _build_tls
+
+    fake_cert = tmp_path / "ca.pem"
+    fake_cert.write_text("not a real cert, just for path testing")
+
+    tls = _build_tls(str(fake_cert))
+
+    assert tls is not None
+    assert tls.validate == ssl.CERT_REQUIRED
+    assert tls.ca_certs_file == str(fake_cert)

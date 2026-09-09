@@ -6,14 +6,18 @@ LDAP-Server geprüft werden kann.
 """
 
 import logging
+import ssl
 from dataclasses import dataclass, field
 
-from ldap3 import ALL, Connection, Server
+from flask import current_app
+from ldap3 import ALL, Connection, Server, Tls
 from ldap3.core.exceptions import LDAPBindError, LDAPException, LDAPInvalidDnError
 from ldap3.utils.conv import escape_filter_chars
 from ldap3.utils.dn import parse_dn
 
 logger = logging.getLogger(__name__)
+
+_ca_cert_warning_logged = False
 
 
 @dataclass
@@ -27,11 +31,36 @@ class LdapAuthError(Exception):
     """Anmeldedaten ungültig oder LDAP-Verzeichnis nicht erreichbar."""
 
 
+def _build_tls(ca_cert_path):
+    """Baut die TLS-Konfiguration für den LDAPS-Verbindungsaufbau.
+
+    Ohne konfigurierten CA-Zertifikatspfad validiert ldap3 das
+    Server-Zertifikat standardmäßig gar nicht (CERT_NONE) - das
+    funktioniert zwar, ist aber anfällig für Man-in-the-Middle. Mit
+    LDAP_CA_CERT_PATH wird stattdessen echte Zertifikatsprüfung gegen
+    die (meist UCS-eigene) CA erzwungen."""
+    global _ca_cert_warning_logged
+    if ca_cert_path:
+        return Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=ca_cert_path)
+
+    if not _ca_cert_warning_logged:
+        logger.warning(
+            "LDAP_CA_CERT_PATH ist nicht gesetzt - die TLS-Zertifikatsprüfung "
+            "gegen den LDAP-Server ist deaktiviert (anfällig für "
+            "Man-in-the-Middle). Für den produktiven Einsatz sollte die "
+            "CA-Zertifikatsdatei der UCS eingebunden werden."
+        )
+        _ca_cert_warning_logged = True
+    return None
+
+
 def _default_connection_factory(settings):
+    tls = _build_tls(current_app.config.get("LDAP_CA_CERT_PATH"))
     server = Server(
         settings.ldap_server,
         port=settings.ldap_port,
         use_ssl=settings.ldap_use_ssl,
+        tls=tls,
         get_info=ALL,
     )
 
