@@ -137,6 +137,10 @@ def list_view():
     if not show_closed:
         base_query = base_query.filter(Ticket.status != TicketStatus.GESCHLOSSEN)
 
+    only_mine = current_user.ist_agent and session.get("only_mine_assigned", False)
+    if only_mine:
+        base_query = base_query.filter(Ticket.zugewiesen_an_id == current_user.id)
+
     # Erstellbare Filter-Optionen aus dem sichtbaren Scope (vor den
     # eigentlichen Filtern), damit das Dropdown unabhängig von der
     # aktuellen Filterauswahl vollständig bleibt.
@@ -221,6 +225,7 @@ def list_view():
         categories=categories,
         erstellbare_ersteller=erstellbare_ersteller,
         show_closed=show_closed,
+        only_mine=only_mine,
         alt_grenze=alt_grenze,
         filters=request.args,
         sort_url=sort_url,
@@ -235,6 +240,13 @@ def list_view():
 @login_required
 def toggle_closed():
     session["show_closed"] = not session.get("show_closed", False)
+    return redirect(request.referrer or url_for("tickets.list_view"))
+
+
+@tickets_bp.route("/mir-zugewiesen-umschalten", methods=["POST"])
+@login_required
+def toggle_only_mine():
+    session["only_mine_assigned"] = not session.get("only_mine_assigned", False)
     return redirect(request.referrer or url_for("tickets.list_view"))
 
 

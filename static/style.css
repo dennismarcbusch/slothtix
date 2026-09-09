@@ -156,7 +156,8 @@ button:hover, .button:hover { opacity: 0.9; }
 }
 .filters input, .filters select { width: auto; }
 
-.closed-toggle { margin-bottom: 0.75rem; }
+.closed-toggle { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.closed-toggle .inline-form { margin-bottom: 0; }
 
 .table-scroll { overflow-x: auto; }
 

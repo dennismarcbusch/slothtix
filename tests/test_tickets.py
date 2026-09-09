@@ -548,3 +548,41 @@ def test_new_ticket_missing_all_required_fields_shows_error(app, client, admin_u
         response = client.post("/tickets/neu", data={}, follow_redirects=True).get_data(as_text=True)
 
         assert "Bitte die markierten Pflichtfelder korrekt ausfüllen" in response
+
+
+def test_only_mine_assigned_toggle_filters_overview(app, client, make_team, make_user):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        ersteller = make_user(anzeigename="Ersteller", email="e@example.local", ad_username="ersteller")
+        agent = make_user(anzeigename="Agent", email="agent@example.local", ad_username="agent", teams=[team])
+        agent_id = agent.id
+
+        mir_zugewiesen = _create_ticket(db, team, category, ersteller, titel="Mir zugewiesen")
+        mir_zugewiesen.zugewiesen_an_id = agent_id
+        _create_ticket(db, team, category, ersteller, titel="Anderes Ticket")
+        db.session.commit()
+
+        login_as(client, agent_id)
+
+        response = client.get("/tickets/").get_data(as_text=True)
+        assert "Mir zugewiesen" in response
+        assert "Anderes Ticket" in response
+
+        client.post("/tickets/mir-zugewiesen-umschalten", follow_redirects=False)
+        response = client.get("/tickets/").get_data(as_text=True)
+        assert "Mir zugewiesen" in response
+        assert "Anderes Ticket" not in response
+
+
+def test_only_mine_toggle_not_shown_for_pure_user(app, client, make_team, make_user):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        ersteller = make_user(anzeigename="Ersteller", email="e@example.local", ad_username="ersteller")
+        _create_ticket(db, team, category, ersteller)
+
+        login_as(client, ersteller)
+        response = client.get("/tickets/").get_data(as_text=True)
+
+        assert "Nur mir zugewiesene anzeigen" not in response

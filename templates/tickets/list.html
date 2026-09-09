@@ -41,10 +41,18 @@
     <button type="submit">Filtern</button>
 </form>
 
-<form method="post" action="{{ url_for('tickets.toggle_closed') }}" class="closed-toggle">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit">{{ "Geschlossene ausblenden" if show_closed else "Geschlossene einblenden" }}</button>
-</form>
+<div class="closed-toggle">
+    <form method="post" action="{{ url_for('tickets.toggle_closed') }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">{{ "Geschlossene ausblenden" if show_closed else "Geschlossene einblenden" }}</button>
+    </form>
+    {% if current_user.ist_agent %}
+    <form method="post" action="{{ url_for('tickets.toggle_only_mine') }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">{{ "Alle Tickets anzeigen" if only_mine else "Nur mir zugewiesene anzeigen" }}</button>
+    </form>
+    {% endif %}
+</div>
 
 {% macro sort_th(spalte, label) %}
 <th><a href="{{ sort_url(spalte) }}" class="sort-link">{{ label }}{% if sort_spalte == spalte %}<span class="sort-arrow">{{ "▲" if sort_richtung == "asc" else "▼" }}</span>{% endif %}</a></th>
