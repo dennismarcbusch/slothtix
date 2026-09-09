@@ -91,29 +91,43 @@ def _log_history(ticket, aktion, alter_wert, neuer_wert):
     )
 
 
+def _sichtbare_tickets_basis(user):
+    query = Ticket.query
+    if user.ist_admin:
+        pass
+    elif user.ist_agent:
+        team_ids = [t.id for t in user.teams]
+        query = query.filter(db.or_(Ticket.team_id.in_(team_ids), Ticket.ersteller_id == user.id))
+    else:
+        query = query.filter(Ticket.ersteller_id == user.id)
+    return query
+
+
 @tickets_bp.route("/")
 @login_required
 def list_view():
-    query = Ticket.query.options(
+    base_query = _sichtbare_tickets_basis(current_user)
+
+    show_closed = session.get("show_closed", False)
+    if not show_closed:
+        base_query = base_query.filter(Ticket.status != TicketStatus.GESCHLOSSEN)
+
+    # Erstellbare Filter-Optionen aus dem sichtbaren Scope (vor den
+    # eigentlichen Filtern), damit das Dropdown unabhängig von der
+    # aktuellen Filterauswahl vollständig bleibt.
+    erstellbare_ids = {
+        row[0] for row in base_query.with_entities(Ticket.ersteller_id).distinct()
+    }
+    erstellbare_ersteller = (
+        User.query.filter(User.id.in_(erstellbare_ids)).order_by(User.anzeigename).all()
+    )
+
+    query = base_query.options(
         joinedload(Ticket.team),
         joinedload(Ticket.category),
         joinedload(Ticket.ersteller),
         joinedload(Ticket.zugewiesen_an),
     )
-
-    if current_user.ist_admin:
-        pass
-    elif current_user.ist_agent:
-        team_ids = [t.id for t in current_user.teams]
-        query = query.filter(
-            db.or_(Ticket.team_id.in_(team_ids), Ticket.ersteller_id == current_user.id)
-        )
-    else:
-        query = query.filter(Ticket.ersteller_id == current_user.id)
-
-    show_closed = session.get("show_closed", False)
-    if not show_closed:
-        query = query.filter(Ticket.status != TicketStatus.GESCHLOSSEN)
 
     team_filter = request.args.get("team", type=int)
     if team_filter:
@@ -137,6 +151,10 @@ def list_view():
     if category_filter:
         query = query.filter(Ticket.category_id == category_filter)
 
+    ersteller_filter = request.args.get("ersteller", type=int)
+    if ersteller_filter:
+        query = query.filter(Ticket.ersteller_id == ersteller_filter)
+
     suche = request.args.get("q", "").strip()
     if suche:
         like = f"%{suche}%"
@@ -159,6 +177,7 @@ def list_view():
         tickets=tickets,
         teams=teams,
         categories=categories,
+        erstellbare_ersteller=erstellbare_ersteller,
         show_closed=show_closed,
         alt_grenze=alt_grenze,
         filters=request.args,

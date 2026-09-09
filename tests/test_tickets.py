@@ -400,3 +400,19 @@ def test_attachment_extension_wins_over_spoofed_content_type(app, client, admin_
 
         assert b"ist nicht erlaubt" in response.data
         assert Ticket.query.filter_by(titel="Gespoofter Typ").first() is None
+
+
+def test_ersteller_filter_narrows_overview(app, client, admin_user, make_team, make_user):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        anderer = make_user(anzeigename="Anderer Ersteller", email="a@example.local", ad_username="anderer")
+        _create_ticket(db, team, category, admin_user, titel="Ticket von Admin")
+        _create_ticket(db, team, category, anderer, titel="Ticket von Anderer")
+        anderer_id = anderer.id
+
+        login_as(client, admin_user)
+        response = client.get(f"/tickets/?ersteller={anderer_id}").get_data(as_text=True)
+
+        assert "Ticket von Anderer" in response
+        assert "Ticket von Admin" not in response

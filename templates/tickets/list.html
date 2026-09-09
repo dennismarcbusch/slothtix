@@ -20,6 +20,12 @@
         <option value="{{ category.id }}" {% if filters.get('kategorie')|string == category.id|string %}selected{% endif %}>{{ category.name }}</option>
         {% endfor %}
     </select>
+    <select name="ersteller">
+        <option value="">Alle Ersteller</option>
+        {% for user in erstellbare_ersteller %}
+        <option value="{{ user.id }}" {% if filters.get('ersteller')|string == user.id|string %}selected{% endif %}>{{ user.anzeigename }}</option>
+        {% endfor %}
+    </select>
     <select name="status">
         <option value="">Alle Status</option>
         {% for status in TicketStatus %}
