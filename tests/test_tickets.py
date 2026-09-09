@@ -294,3 +294,40 @@ def test_closed_tickets_hidden_by_default_in_overview(app, client, admin_user, m
         client.post("/tickets/geschlossene-umschalten", follow_redirects=False)
         response = client.get("/tickets/")
         assert b"Geschlossenes Ticket" in response.data
+
+
+def test_internal_comment_attachment_hidden_from_creator_but_visible_to_agent(
+    app, client, make_team, make_user
+):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        ersteller = make_user(anzeigename="Ersteller", email="e@example.local", ad_username="ersteller")
+        agent = make_user(anzeigename="Agent", email="agent@example.local", ad_username="agent", teams=[team])
+        ticket = _create_ticket(db, team, category, ersteller)
+        ticket_id, agent_id, ersteller_id = ticket.id, agent.id, ersteller.id
+
+    login_as(client, agent_id)
+    client.post(
+        f"/tickets/{ticket_id}/kommentar",
+        data={
+            "text": "Interne Notiz mit Anhang",
+            "sichtbarkeit": "intern",
+            "anhaenge": (io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"0" * 50), "intern.png"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    with app.app_context():
+        from app.models import Attachment
+
+        attachment_id = Attachment.query.filter_by(dateiname="intern.png").first().id
+
+    login_as(client, ersteller_id)
+    response = client.get(f"/tickets/anhaenge/{attachment_id}")
+    assert response.status_code == 403
+
+    login_as(client, agent_id)
+    response = client.get(f"/tickets/anhaenge/{attachment_id}")
+    assert response.status_code == 200
