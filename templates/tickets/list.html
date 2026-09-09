@@ -46,12 +46,16 @@
     <button type="submit">{{ "Geschlossene ausblenden" if show_closed else "Geschlossene einblenden" }}</button>
 </form>
 
+{% macro sort_th(spalte, label) %}
+<th><a href="{{ sort_url(spalte) }}" class="sort-link">{{ label }}{% if sort_spalte == spalte %}<span class="sort-arrow">{{ "▲" if sort_richtung == "asc" else "▼" }}</span>{% endif %}</a></th>
+{% endmacro %}
+
 <div class="table-scroll">
 <table class="ticket-table">
     <thead>
         <tr>
-            <th>#</th><th>Titel</th><th>Team</th><th>Kategorie</th><th>Priorität</th>
-            <th>Status</th><th>Ersteller</th><th>Zugewiesen</th><th>Erstellt</th>
+            {{ sort_th("id", "#") }}{{ sort_th("titel", "Titel") }}{{ sort_th("team", "Team") }}{{ sort_th("kategorie", "Kategorie") }}{{ sort_th("prioritaet", "Priorität") }}
+            {{ sort_th("status", "Status") }}{{ sort_th("ersteller", "Ersteller") }}{{ sort_th("zugewiesen", "Zugewiesen") }}{{ sort_th("erstellt", "Erstellt") }}
         </tr>
     </thead>
     <tbody>

@@ -451,3 +451,55 @@ def test_agent_can_change_priority_and_history_is_recorded(app, client, make_tea
         assert len(updated.historie) == 1
         assert updated.historie[0].alter_wert == "mittel"
         assert updated.historie[0].neuer_wert == "niedrig"
+
+
+def test_sort_by_titel_ascending_and_descending(app, client, admin_user, make_team):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        _create_ticket(db, team, category, admin_user, titel="Zebra-Ticket")
+        _create_ticket(db, team, category, admin_user, titel="Apfel-Ticket")
+
+    login_as(client, admin_user)
+
+    response = client.get("/tickets/?sort=titel&dir=asc").get_data(as_text=True)
+    apfel_pos = response.index("Apfel-Ticket")
+    zebra_pos = response.index("Zebra-Ticket")
+    assert apfel_pos < zebra_pos
+
+    response = client.get("/tickets/?sort=titel&dir=desc").get_data(as_text=True)
+    apfel_pos = response.index("Apfel-Ticket")
+    zebra_pos = response.index("Zebra-Ticket")
+    assert zebra_pos < apfel_pos
+
+
+def test_sort_by_prioritaet_uses_severity_order_not_alphabetical(app, client, admin_user, make_team):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        hoch = _create_ticket(db, team, category, admin_user, titel="Hohes Ticket")
+        hoch.prioritaet = TicketPrioritaet.HOCH
+        niedrig = _create_ticket(db, team, category, admin_user, titel="Niedriges Ticket")
+        niedrig.prioritaet = TicketPrioritaet.NIEDRIG
+        db.session.commit()
+
+    login_as(client, admin_user)
+
+    response = client.get("/tickets/?sort=prioritaet&dir=asc").get_data(as_text=True)
+    niedrig_pos = response.index("Niedriges Ticket")
+    hoch_pos = response.index("Hohes Ticket")
+    # Aufsteigend nach Dringlichkeit: niedrig vor hoch (nicht alphabetisch,
+    # da "hoch" < "niedrig" waere).
+    assert niedrig_pos < hoch_pos
+
+
+def test_sort_link_toggles_direction_and_preserves_filters(app, client, admin_user, make_team):
+    with app.app_context():
+        team_id = make_team().id
+
+    login_as(client, admin_user)
+    response = client.get(f"/tickets/?team={team_id}&sort=titel&dir=asc").get_data(as_text=True)
+
+    assert "sort=titel" in response
+    assert "dir=desc" in response
+    assert f"team={team_id}" in response

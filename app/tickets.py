@@ -91,6 +91,31 @@ def _log_history(ticket, aktion, alter_wert, neuer_wert):
     )
 
 
+_PRIORITAET_RANG = {TicketPrioritaet.NIEDRIG: 0, TicketPrioritaet.MITTEL: 1, TicketPrioritaet.HOCH: 2}
+_STATUS_RANG = {
+    TicketStatus.OFFEN: 0,
+    TicketStatus.IN_BEARBEITUNG: 1,
+    TicketStatus.GELOEST: 2,
+    TicketStatus.GESCHLOSSEN: 3,
+}
+
+# Sortierung erfolgt bewusst in Python nach dem Laden statt per DB-Join
+# (Team/Kategorie/Ersteller/Zugewiesen sind bereits eager geladen) - bei
+# der erwarteten Ticket-Menge (wenige gleichzeitige Nutzer) unproblematisch
+# und deutlich einfacher als drei zusätzliche Joins/Aliase für die Sortierung.
+SORTIER_SPALTEN = {
+    "id": lambda t: t.id,
+    "titel": lambda t: t.titel.lower(),
+    "team": lambda t: t.team.name.lower(),
+    "kategorie": lambda t: t.category.name.lower(),
+    "prioritaet": lambda t: _PRIORITAET_RANG[t.prioritaet],
+    "status": lambda t: _STATUS_RANG[t.status],
+    "ersteller": lambda t: t.ersteller.anzeigename.lower(),
+    "zugewiesen": lambda t: (t.zugewiesen_an.anzeigename.lower() if t.zugewiesen_an else ""),
+    "erstellt": lambda t: t.erstellt_am,
+}
+
+
 def _sichtbare_tickets_basis(user):
     query = Ticket.query
     if user.ist_admin:
@@ -160,7 +185,24 @@ def list_view():
         like = f"%{suche}%"
         query = query.filter(db.or_(Ticket.titel.ilike(like), Ticket.beschreibung.ilike(like)))
 
-    tickets = query.order_by(Ticket.erstellt_am.desc()).all()
+    sort_spalte = request.args.get("sort", "erstellt")
+    if sort_spalte not in SORTIER_SPALTEN:
+        sort_spalte = "erstellt"
+    sort_richtung = request.args.get("dir")
+    if sort_richtung not in ("asc", "desc"):
+        sort_richtung = "desc" if sort_spalte == "erstellt" else "asc"
+
+    tickets = query.order_by(Ticket.id).all()
+    tickets.sort(key=SORTIER_SPALTEN[sort_spalte], reverse=(sort_richtung == "desc"))
+
+    def sort_url(spalte):
+        args = request.args.to_dict(flat=True)
+        args["sort"] = spalte
+        if spalte == sort_spalte:
+            args["dir"] = "asc" if sort_richtung == "desc" else "desc"
+        else:
+            args.pop("dir", None)
+        return url_for("tickets.list_view", **args)
 
     settings = Settings.get_or_create()
     alt_grenze = utcnow() - timedelta(days=settings.alte_tickets_tage)
@@ -181,6 +223,9 @@ def list_view():
         show_closed=show_closed,
         alt_grenze=alt_grenze,
         filters=request.args,
+        sort_url=sort_url,
+        sort_spalte=sort_spalte,
+        sort_richtung=sort_richtung,
         TicketStatus=TicketStatus,
         TicketPrioritaet=TicketPrioritaet,
     )
