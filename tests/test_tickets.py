@@ -1,7 +1,7 @@
 import io
 
 from app.extensions import db
-from app.models import Comment, Settings, Sichtbarkeit, Ticket, TicketPrioritaet, TicketStatus
+from app.models import Comment, Settings, Sichtbarkeit, Team, Ticket, TicketPrioritaet, TicketStatus
 
 from tests.conftest import login_as
 
@@ -331,3 +331,48 @@ def test_internal_comment_attachment_hidden_from_creator_but_visible_to_agent(
     login_as(client, agent_id)
     response = client.get(f"/tickets/anhaenge/{attachment_id}")
     assert response.status_code == 200
+
+
+def test_old_open_ticket_is_highlighted_in_overview(app, client, admin_user, make_team):
+    from datetime import timedelta
+
+    from app.models import utcnow
+
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        alt = _create_ticket(db, team, category, admin_user, titel="Altes Ticket")
+        alt.erstellt_am = utcnow() - timedelta(days=30)
+        neu = _create_ticket(db, team, category, admin_user, titel="Neues Ticket")
+        db.session.commit()
+
+    login_as(client, admin_user)
+    response = client.get("/tickets/").get_data(as_text=True)
+
+    assert 'ticket-alt' in response
+    alt_row_start = response.index("Altes Ticket")
+    neu_row_start = response.index("Neues Ticket")
+    alt_row = response[max(0, alt_row_start - 400) : alt_row_start]
+    neu_row = response[max(0, neu_row_start - 400) : neu_row_start]
+    assert "ticket-alt" in alt_row
+    assert "ticket-alt" not in neu_row
+
+
+def test_search_and_filters_narrow_overview(app, client, admin_user, make_team):
+    with app.app_context():
+        team_a = make_team(name="IT", ad_gruppe_agenten="grp-it")
+        team_b = make_team(name="Hausmeister", ad_gruppe_agenten="grp-hm", kategorien=("Heizung",))
+        _create_ticket(db, team_a, team_a.kategorien[0], admin_user, titel="Drucker streikt")
+        _create_ticket(db, team_b, team_b.kategorien[0], admin_user, titel="Heizung kalt")
+
+    login_as(client, admin_user)
+
+    response = client.get("/tickets/?q=Drucker").get_data(as_text=True)
+    assert "Drucker streikt" in response
+    assert "Heizung kalt" not in response
+
+    with app.app_context():
+        team_b_id = Team.query.filter_by(name="Hausmeister").first().id
+    response = client.get(f"/tickets/?team={team_b_id}").get_data(as_text=True)
+    assert "Heizung kalt" in response
+    assert "Drucker streikt" not in response
