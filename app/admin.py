@@ -1,9 +1,9 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, url_for
 
 from app.auth import admin_required
 from app.extensions import db
 from app.forms import CategoryForm, SettingsForm, TeamForm
-from app.models import Category, Settings, Team, Ticket
+from app.models import Category, Settings, Team
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 

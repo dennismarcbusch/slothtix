@@ -280,7 +280,7 @@ def test_closed_tickets_hidden_by_default_in_overview(app, client, admin_user, m
     with app.app_context():
         team = make_team()
         category = team.kategorien[0]
-        offen = _create_ticket(db, team, category, admin_user, titel="Offenes Ticket")
+        _create_ticket(db, team, category, admin_user, titel="Offenes Ticket")
         geschlossen = _create_ticket(db, team, category, admin_user, titel="Geschlossenes Ticket")
         geschlossen.status = TicketStatus.GESCHLOSSEN
         db.session.commit()
@@ -343,7 +343,7 @@ def test_old_open_ticket_is_highlighted_in_overview(app, client, admin_user, mak
         category = team.kategorien[0]
         alt = _create_ticket(db, team, category, admin_user, titel="Altes Ticket")
         alt.erstellt_am = utcnow() - timedelta(days=30)
-        neu = _create_ticket(db, team, category, admin_user, titel="Neues Ticket")
+        _create_ticket(db, team, category, admin_user, titel="Neues Ticket")
         db.session.commit()
 
     login_as(client, admin_user)
