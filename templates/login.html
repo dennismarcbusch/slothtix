@@ -2,6 +2,7 @@
 {% block title %}Anmelden – SlothTix{% endblock %}
 {% block content %}
 <div class="card auth-card">
+    <img src="{{ url_for('static', filename='android-chrome-192x192.png') }}" alt="SlothTix" class="auth-logo">
     <h1>Anmelden</h1>
     <form method="post" novalidate>
         {{ form.hidden_tag() }}

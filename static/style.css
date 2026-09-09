@@ -38,10 +38,18 @@ a { color: var(--color-primary); }
 }
 
 .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-weight: 700;
     font-size: 1.2rem;
     text-decoration: none;
     color: var(--color-navbar-text);
+}
+.brand-logo {
+    height: 32px;
+    width: 32px;
+    border-radius: 8px;
 }
 
 .main-nav { display: flex; gap: 1rem; flex-wrap: wrap; flex: 1; }
@@ -75,7 +83,16 @@ a { color: var(--color-primary); }
     margin-bottom: 1rem;
 }
 
-.auth-card { max-width: 360px; margin: 3rem auto; }
+.auth-card { max-width: 360px; margin: 3rem auto; text-align: center; }
+.auth-card h1 { text-align: left; }
+.auth-card .field { text-align: left; }
+.auth-logo {
+    display: block;
+    margin: 0 auto 1rem;
+    height: 88px;
+    width: 88px;
+    border-radius: 20px;
+}
 
 .flashes { list-style: none; padding: 0; margin: 0 0 1rem; }
 .flash {

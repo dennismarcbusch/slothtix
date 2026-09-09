@@ -4,11 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}SlothTix{% endblock %}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <header class="topbar">
-        <a class="brand" href="{{ url_for('main.index') }}">SlothTix</a>
+        <a class="brand" href="{{ url_for('main.index') }}">
+            <img src="{{ url_for('static', filename='android-chrome-192x192.png') }}" alt="" class="brand-logo">
+            SlothTix
+        </a>
         {% if current_user.is_authenticated %}
         <nav class="main-nav">
             <a href="{{ url_for('tickets.list_view') }}">Tickets</a>
