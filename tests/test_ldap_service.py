@@ -102,3 +102,31 @@ def test_build_tls_with_ca_path_requires_verification(tmp_path):
     assert tls is not None
     assert tls.validate == ssl.CERT_REQUIRED
     assert tls.ca_certs_file == str(fake_cert)
+
+
+def test_default_connection_factory_does_not_fetch_server_schema(app, monkeypatch):
+    """Regression: get_info=ALL made ldap3 validate our search filter
+    against the fetched server schema. sAMAccountName exists in AD's
+    schema but not in a plain (Open)LDAP schema, so on a real UCS server
+    this raised LDAPAttributeError('invalid attribute sAMAccountName')
+    and turned every login into a 500. We must never fetch schema for
+    the search filter to stay portable across LDAP schema flavors."""
+    from app import ldap_service
+    from app.models import Settings
+
+    captured = {}
+
+    class FakeServer:
+        def __init__(self, *args, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(ldap_service, "Server", FakeServer)
+
+    with app.app_context():
+        settings = Settings.get_or_create()
+        settings.ldap_server = "ucs.example.local"
+        settings.ldap_port = 636
+        settings.ldap_use_ssl = True
+        ldap_service._default_connection_factory(settings)
+
+    assert "get_info" not in captured
