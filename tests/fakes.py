@@ -3,6 +3,32 @@
 from ldap3.core.exceptions import LDAPBindError
 
 
+class FakeAttribute:
+    """Mimics ldap3's real Attribute duck type just enough for our code:
+    `.value`, truthiness/iteration over the raw value, and str() that
+    reproduces ldap3's real (surprising) behavior of rendering an empty
+    attribute as the literal text "[]" rather than an empty string -
+    the exact behavior that caused a real production bug. Keeping this
+    faithful is the point: a fake that's *too* simple is what let that
+    bug slip through the test suite in the first place."""
+
+    def __init__(self, value):
+        self._value = value
+
+    @property
+    def value(self):
+        return self._value
+
+    def __bool__(self):
+        return bool(self._value)
+
+    def __iter__(self):
+        return iter(self._value or [])
+
+    def __str__(self):
+        return str(self._value) if self._value else "[]"
+
+
 class FakeEntry:
     def __init__(self, dn, cn=None, mail=None, displayName=None, memberOf=None):
         self.entry_dn = dn
@@ -14,10 +40,15 @@ class FakeEntry:
         }
 
     def __contains__(self, key):
-        return bool(self._data.get(key))
+        # Wie ldap3: True, sobald das Attribut bekannt ist - auch wenn
+        # es (noch) keinen Wert hat.
+        return key in self._data
+
+    def __getitem__(self, key):
+        return FakeAttribute(self._data.get(key))
 
     def __getattr__(self, key):
-        return self._data.get(key)
+        return FakeAttribute(self._data.get(key))
 
 
 class FakeSearchConnection:

@@ -135,3 +135,32 @@ def test_default_connection_factory_disables_schema_fetch(app, monkeypatch):
         ldap_service._default_connection_factory(settings)
 
     assert captured.get("get_info") == NO_INFO
+
+
+def test_attribute_value_handles_present_but_empty_attribute():
+    """Regression: ldap3's `name in entry` is True even when the
+    attribute exists with zero values (e.g. a UCS user whose 'mail'
+    field was left blank). str() on such an attribute returns the
+    literal text "[]", not an empty string - which was silently passed
+    to smtplib as the recipient address ("Recipient address rejected:
+    need fully-qualified address"). Uses a real ldap3 MOCK_SYNC entry
+    (not our own FakeEntry) since this is exactly the ldap3-internal
+    behavior under test."""
+    from ldap3 import Connection, MOCK_SYNC, Server
+
+    from app.ldap_service import _attribute_value
+
+    server = Server("mock")
+    conn = Connection(server, client_strategy=MOCK_SYNC)
+    conn.strategy.add_entry(
+        "uid=test,dc=example,dc=local",
+        {"objectClass": "inetOrgPerson", "cn": "Test User", "mail": [], "displayName": []},
+    )
+    conn.bind()
+    conn.search("dc=example,dc=local", "(uid=test)", attributes=["cn", "mail", "displayName"])
+    entry = conn.entries[0]
+
+    assert _attribute_value(entry, "mail") is None
+    assert _attribute_value(entry, "displayName") is None
+    assert _attribute_value(entry, "cn") == "Test User"
+    assert _attribute_value(entry, "doesNotExist") is None

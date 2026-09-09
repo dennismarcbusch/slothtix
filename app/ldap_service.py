@@ -110,8 +110,8 @@ def authenticate(settings, bind_password, username, password, connection_factory
 
         entry = search_conn.entries[0]
         user_dn = entry.entry_dn
-        anzeigename = str(entry.displayName) if "displayName" in entry else str(entry.cn)
-        email = str(entry.mail) if "mail" in entry else ""
+        anzeigename = _attribute_value(entry, "displayName") or _attribute_value(entry, "cn") or username
+        email = _attribute_value(entry, "mail") or ""
         gruppen = _extract_group_names(entry)
     finally:
         search_conn.unbind()
@@ -126,6 +126,22 @@ def authenticate(settings, bind_password, username, password, connection_factory
     user_conn.unbind()
 
     return LdapUser(anzeigename=anzeigename, email=email, gruppen=gruppen)
+
+
+def _attribute_value(entry, name):
+    """Liefert den Einzelwert eines LDAP-Attributs, oder None, falls es
+    fehlt ODER zwar vorhanden, aber leer ist.
+
+    `name in entry` allein reicht nicht: ldap3 liefert dafür auch dann
+    True, wenn das Attribut existiert, aber ohne Wert ist - str() auf
+    einem solchen leeren Attribut ergibt dann fälschlich den *Text*
+    "[]" statt eines Leerstrings (reproduziert und verifiziert gegen
+    die echte ldap3-Bibliothek). Das hätte z. B. "[]" als E-Mail-
+    Empfänger an smtplib weitergereicht."""
+    if name not in entry:
+        return None
+    value = entry[name].value
+    return str(value) if value is not None else None
 
 
 def _extract_group_names(entry):
