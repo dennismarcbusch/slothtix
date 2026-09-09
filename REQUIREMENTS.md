@@ -8,6 +8,12 @@ Kernfunktionen fehlerhaft) zu vermeiden. Erste Nutzergruppen sind das IT-Team un
 das Hausmeister-Team; weitere Teams (z. B. Verwaltung) sollen später ohne
 Code-Änderung ergänzt werden können.
 
+Dieses Dokument beschreibt *was* gebaut wurde und *warum*. Für die praktische
+Nutzung/den Betrieb siehe:
+- [docs/SETUP.md](docs/SETUP.md) – Installation & Konfiguration
+- [docs/HANDBUCH_AGENTEN.md](docs/HANDBUCH_AGENTEN.md) – Handbuch für Team-Mitglieder
+- [docs/HANDBUCH_USER.md](docs/HANDBUCH_USER.md) – Handbuch für alle übrigen Nutzer
+
 ## 2. Rollen & Begriffe
 
 | Begriff | Bedeutung |
@@ -87,6 +93,22 @@ Ein Agent kann Mitglied mehrerer Teams sein.
   „Offen" oder „In Bearbeitung" verharren, werden in der Übersicht farblich
   hervorgehoben. Dient als einfacher Hinweis gegen Vergessen, ohne eine
   vollständige SLA-Logik einzuführen.
+- **Sortierbare Übersicht:** Jede Spalte der Ticket-Übersicht ist per Klick
+  auf die Spaltenüberschrift sortierbar (erneuter Klick kehrt die Richtung
+  um). Priorität und Status sortieren nach Dringlichkeit/Workflow-Reihenfolge,
+  nicht alphabetisch.
+- **„Nur mir zugewiesene" Filter:** Agenten können die Übersicht per Toggle
+  (analog zum Geschlossen-Toggle) auf ausschließlich ihnen zugewiesene
+  Tickets einschränken.
+- **Priorität nachträglich änderbar:** Agenten können die bei der
+  Ticket-Erstellung gewählte Priorität jederzeit korrigieren (protokolliert
+  in der Historie) – Nutzer neigen dazu, ihr eigenes Anliegen als
+  dringlicher einzuschätzen als es ist.
+- **Pflichtfeld-Validierung:** Team und Kategorie haben bei der
+  Ticket-Erstellung bewusst keine Vorauswahl (verhindert versehentliches
+  Senden ans falsche Team); fehlende Pflichtfelder werden sowohl durch den
+  Browser (native Validierung) als auch serverseitig (Fehlermeldung je
+  Feld) zurückgemeldet.
 
 ### 3.5 Kommentare
 - Kommentare können von Usern (nur öffentlich, nur zu eigenen Tickets) und
@@ -140,11 +162,17 @@ Ein Agent kann Mitglied mehrerer Teams sein.
   Persistenz ohne separaten DB-Server kein eingebauter Replikations-/
   Backup-Mechanismus existiert. Umsetzung z. B. als Cron-Job/Sidecar im
   Docker-Setup, der Sicherungen an einem konfigurierbaren Ziel ablegt.
-- **Deployment:** Docker-Container auf einem selbst verwalteten Server.
+- **Deployment:** Docker-Container auf einem selbst verwalteten Server,
+  davor ein Caddy-Reverse-Proxy für automatisches HTTPS via Let's Encrypt
+  (Zertifikatsausstellung/-erneuerung läuft vollautomatisch, keine
+  manuelle Certbot-Pflege nötig). Produktiv erreichbar unter
+  `https://tickets.bs-lif.schule`.
 - **Responsives Layout:** Die Oberfläche ist für mobile Endgeräte nutzbar
   (Smartphone/Tablet), da insbesondere das Hausmeister-Team häufig unterwegs
   ist und Tickets eher am Handy als am PC bearbeitet.
 - **Sprache:** Oberfläche auf Deutsch (Annahme, siehe Abschnitt 7).
+- **Branding:** Eigenes Logo/Favicon (Wortmarke auf dem Login-Bildschirm,
+  kompaktes Icon in Navbar und Browser-Tab).
 - **Datenschutz (DSGVO):** Da personenbezogene Daten von Schulpersonal
   verarbeitet werden, sind Aufbewahrungsfristen/Löschkonzept für geschlossene
   Tickets zu klären (siehe offene Punkte).
@@ -169,12 +197,20 @@ Ein Agent kann Mitglied mehrerer Teams sein.
 - **Zugriffskonfiguration**: ad_gruppe_user (globale User-Zugriffsgruppe),
   LDAP-Verbindungsdaten, SMTP-Einstellungen
 
-## 6. Technische Architektur (Ausgangspunkt)
+## 6. Technische Architektur
 
-- **Backend:** Python, Flask (bereits als Projektgerüst angelegt)
-- **Datenhaltung:** SQLite (z. B. via SQLAlchemy als ORM)
-- **Authentifizierung:** LDAP-Bind gegen UCS (z. B. `python-ldap` oder `ldap3`)
-- **Deployment:** Dockerfile + docker-compose für den produktiven Betrieb
+- **Backend:** Python, Flask (App-Factory-Pattern in `app/`)
+- **Datenhaltung:** SQLite via SQLAlchemy/Flask-Migrate (Alembic)
+- **Authentifizierung:** LDAP-Bind gegen UCS via `ldap3`, TLS-Zertifikatsprüfung
+  gegen konfigurierbare CA (`LDAP_CA_CERT_PATH`)
+- **Deployment:** Dockerfile (gunicorn) + docker-compose; Caddy als
+  Reverse-Proxy für TLS-Terminierung und automatisches Let's-Encrypt-Zertifikat
+  (`Caddyfile`). Die App ist im Compose-Setup nur noch über Caddy erreichbar,
+  nicht mehr direkt vom Host aus. `ProxyFix` (Werkzeug) vertraut den
+  Proxy-Headern für korrekte Secure-Cookies und `https://`-Links in
+  E-Mails (siehe `FORCE_HTTPS`).
+- **Tests:** pytest-Suite (LDAP-Auth inkl. Schema-/Attribut-Sonderfälle,
+  Ticket-Workflow/Berechtigungen, Mail-Versand)
 - **Versionierung:** Git, Repository unter
   [github.com/dennismarcbusch/slothtix](https://github.com/dennismarcbusch/slothtix.git)
 
@@ -190,9 +226,9 @@ behalten werden:
    Re-Check ergänzt werden.
 2. **Aufbewahrung/Löschung** geschlossener Tickets und personenbezogener Daten
    (DSGVO-Löschkonzept) ist noch zu definieren.
-3. **Weitere Teams** (Verwaltung etc.) sind strukturell bereits vorgesehen,
-   müssen aber inhaltlich (eigene AD-Gruppe) noch angelegt werden, sobald
-   benötigt.
+3. **Weitere Teams** (Verwaltung etc.) sind strukturell bereits vorgesehen
+   und benötigen keine Code-Änderung – einfach über die Admin-Oberfläche
+   unter „Teams" anlegen und die passende AD-Gruppe hinterlegen.
 4. **Mehrsprachigkeit:** aktuell nur Deutsch vorgesehen; bei Bedarf müsste die
    Oberfläche für Mehrsprachigkeit vorbereitet werden (z. B. via
    Flask-Babel).
@@ -224,3 +260,8 @@ behalten werden:
 | Alte offene Tickets | Visuelle Hervorhebung ab konfigurierbarer Frist (Standard 7 Tage) |
 | Backup | Automatisiert, regelmäßig (z. B. täglich) |
 | Responsives Layout | Ja, mobile-tauglich |
+| Sortierbare Übersicht | Ja, jede Spalte klickbar (Priorität/Status nach Dringlichkeit, nicht alphabetisch) |
+| „Nur mir zugewiesene"-Filter | Ja, Toggle für Agenten |
+| Priorität nachträglich ändern | Ja, durch Agenten, mit Historie |
+| HTTPS/Zertifikat | Caddy-Reverse-Proxy, automatisches Let's-Encrypt-Zertifikat |
+| Branding | Eigenes Logo/Favicon |
