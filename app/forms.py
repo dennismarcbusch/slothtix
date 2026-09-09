@@ -5,11 +5,26 @@ from wtforms.validators import DataRequired, Length, NumberRange, Optional
 from app.models import Sichtbarkeit, TicketPrioritaet
 
 
+def _coerce_int_or_none(value):
+    """coerce für SelectFields mit Leer-Option: eine leere Auswahl ('')
+    wird zu None statt einen ValueError beim int()-Cast auszulösen, damit
+    DataRequired() sie sauber als "nicht ausgefüllt" ablehnen kann."""
+    if value in (None, "", "None"):
+        return None
+    return int(value)
+
+
 class TicketForm(FlaskForm):
     titel = StringField("Titel", validators=[DataRequired(), Length(max=255)])
     beschreibung = TextAreaField("Beschreibung", validators=[DataRequired()])
-    team_id = SelectField("Team", coerce=int, validators=[DataRequired()])
-    category_id = SelectField("Kategorie", coerce=int, validators=[DataRequired()])
+    team_id = SelectField(
+        "Team", coerce=_coerce_int_or_none, validators=[DataRequired(message="Bitte ein Team auswählen.")]
+    )
+    category_id = SelectField(
+        "Kategorie",
+        coerce=_coerce_int_or_none,
+        validators=[DataRequired(message="Bitte eine Kategorie auswählen.")],
+    )
     prioritaet = SelectField(
         "Priorität",
         choices=[(p.value, p.value.capitalize()) for p in TicketPrioritaet],

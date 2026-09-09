@@ -243,9 +243,11 @@ def toggle_closed():
 def new():
     form = TicketForm()
     teams = Team.query.filter_by(aktiv=True).order_by(Team.name).all()
-    form.team_id.choices = [(t.id, t.name) for t in teams]
+    form.team_id.choices = [("", "Bitte wählen")] + [(t.id, t.name) for t in teams]
     categories = Category.query.filter_by(aktiv=True).join(Team).order_by(Team.name, Category.name).all()
-    form.category_id.choices = [(c.id, f"{c.team.name} – {c.name}") for c in categories]
+    form.category_id.choices = [("", "Bitte zuerst Team wählen")] + [
+        (c.id, f"{c.team.name} – {c.name}") for c in categories
+    ]
 
     categories_by_team_json = _categories_json(categories)
 
@@ -284,6 +286,8 @@ def new():
             notify_ticket_created(ticket)
             flash("Ticket wurde erstellt.", "success")
             return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+    elif request.method == "POST":
+        flash("Bitte die markierten Pflichtfelder korrekt ausfüllen.", "error")
 
     return render_template(
         "tickets/new.html",

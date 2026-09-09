@@ -503,3 +503,48 @@ def test_sort_link_toggles_direction_and_preserves_filters(app, client, admin_us
     assert "sort=titel" in response
     assert "dir=desc" in response
     assert f"team={team_id}" in response
+
+
+def test_new_ticket_form_has_no_team_preselected(app, client, admin_user, make_team):
+    with app.app_context():
+        make_team()
+        login_as(client, admin_user)
+
+        response = client.get("/tickets/neu").get_data(as_text=True)
+
+        # Nur der leere Platzhalter traegt "selected" - kein echtes Team.
+        assert '<option selected value="">Bitte wählen</option>' in response
+        assert 'value="1" selected' not in response
+
+
+def test_new_ticket_missing_team_shows_error_and_does_not_create(app, client, admin_user, make_team):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        login_as(client, admin_user)
+
+        response = client.post(
+            "/tickets/neu",
+            data={
+                "titel": "Ohne Team",
+                "beschreibung": "Test",
+                "team_id": "",
+                "category_id": str(category.id),
+                "prioritaet": "niedrig",
+            },
+            follow_redirects=True,
+        ).get_data(as_text=True)
+
+        assert "Bitte ein Team auswählen" in response
+        assert "Bitte die markierten Pflichtfelder" in response
+        assert Ticket.query.filter_by(titel="Ohne Team").first() is None
+
+
+def test_new_ticket_missing_all_required_fields_shows_error(app, client, admin_user, make_team):
+    with app.app_context():
+        make_team()
+        login_as(client, admin_user)
+
+        response = client.post("/tickets/neu", data={}, follow_redirects=True).get_data(as_text=True)
+
+        assert "Bitte die markierten Pflichtfelder korrekt ausfüllen" in response

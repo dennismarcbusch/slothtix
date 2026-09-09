@@ -89,6 +89,14 @@ a { color: var(--color-primary); }
 .field { margin-bottom: 0.9rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .field label { font-weight: 600; font-size: 0.9rem; }
 .checkbox-field { flex-direction: row; align-items: center; }
+.required-mark { color: var(--color-danger); font-weight: 600; }
+.field-errors {
+    list-style: none;
+    margin: 0.1rem 0 0;
+    padding: 0;
+    color: var(--color-danger);
+    font-size: 0.85rem;
+}
 
 input[type="text"], input[type="password"], input[type="number"],
 select, textarea {

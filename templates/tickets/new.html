@@ -2,27 +2,31 @@
 {% block title %}Neues Ticket – SlothTix{% endblock %}
 {% block content %}
 <h1>Neues Ticket</h1>
-<form method="post" enctype="multipart/form-data" novalidate>
+<form method="post" enctype="multipart/form-data">
     {{ form.hidden_tag() }}
     <div class="field">
-        {{ form.titel.label }}
-        {{ form.titel() }}
+        {{ form.titel.label }} <span class="required-mark">*</span>
+        {{ form.titel(required=true) }}
+        {% if form.titel.errors %}<ul class="field-errors">{% for error in form.titel.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
     </div>
     <div class="field">
-        {{ form.team_id.label }}
-        {{ form.team_id() }}
+        {{ form.team_id.label }} <span class="required-mark">*</span>
+        {{ form.team_id(required=true) }}
+        {% if form.team_id.errors %}<ul class="field-errors">{% for error in form.team_id.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
     </div>
     <div class="field">
-        {{ form.category_id.label }}
-        {{ form.category_id(id="category-select") }}
+        {{ form.category_id.label }} <span class="required-mark">*</span>
+        {{ form.category_id(id="category-select", required=true) }}
+        {% if form.category_id.errors %}<ul class="field-errors">{% for error in form.category_id.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
     </div>
     <div class="field">
-        {{ form.prioritaet.label }}
-        {{ form.prioritaet() }}
+        {{ form.prioritaet.label }} <span class="required-mark">*</span>
+        {{ form.prioritaet(required=true) }}
     </div>
     <div class="field">
-        {{ form.beschreibung.label }}
-        {{ form.beschreibung(rows=6) }}
+        {{ form.beschreibung.label }} <span class="required-mark">*</span>
+        {{ form.beschreibung(rows=6, required=true) }}
+        {% if form.beschreibung.errors %}<ul class="field-errors">{% for error in form.beschreibung.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
     </div>
 
     <div class="field paste-zone" tabindex="0" data-input-name="anhaenge">
@@ -43,6 +47,10 @@
     function filterCategories() {
         const cats = categoryData[teamSelect.value] || [];
         categorySelect.innerHTML = "";
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = teamSelect.value ? "Bitte wählen" : "Bitte zuerst Team wählen";
+        categorySelect.appendChild(placeholder);
         cats.forEach(function (cat) {
             const opt = document.createElement("option");
             opt.value = cat.id;
