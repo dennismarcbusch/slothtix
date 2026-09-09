@@ -1,6 +1,7 @@
 import smtplib
 import ssl
 from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
 
 from flask import current_app
 
@@ -98,6 +99,12 @@ def send_mails(nachrichten):
                 msg["Subject"] = _kopfzeilentauglich(subject)
                 msg["From"] = absender
                 msg["To"] = to_address
+                # Ohne Date/Message-ID (MIMEText setzt beide nicht selbst)
+                # werten Spamfilter (z. B. SpamAssassin-Regeln MISSING_DATE,
+                # MISSING_MID) die Mail deutlich höher - genau das, was
+                # normale Mailclients/MTAs immer automatisch mitschicken.
+                msg["Date"] = formatdate(localtime=True)
+                msg["Message-ID"] = make_msgid(domain=absender.rsplit("@", 1)[-1])
                 try:
                     server.sendmail(absender, [to_address], msg.as_string())
                 except Exception as exc:  # noqa: BLE001
