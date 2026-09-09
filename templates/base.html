@@ -14,7 +14,7 @@
 <body>
     <header class="topbar">
         <a class="brand" href="{{ url_for('main.index') }}">
-            <img src="{{ url_for('static', filename='android-chrome-192x192.png') }}" alt="" class="brand-logo">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="" class="brand-logo">
             SlothTix
         </a>
         {% if current_user.is_authenticated %}
