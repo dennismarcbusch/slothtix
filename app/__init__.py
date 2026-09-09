@@ -5,6 +5,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.cli import bootstrap_admin, register_cli
 from app.config import UNSICHERE_SECRET_KEYS, Config
+from app.database import registriere_sqlite_pragmas
+from app.errors import registriere_fehlerseiten
 from app.extensions import csrf, db, migrate
 from app.security import registriere_security_header
 
@@ -57,9 +59,11 @@ def create_app(config_class=Config):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     db.init_app(app)
+    registriere_sqlite_pragmas(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
     registriere_security_header(app)
+    registriere_fehlerseiten(app)
     register_cli(app)
 
     from app import models  # noqa: F401  (Modelle für Migrationen registrieren)

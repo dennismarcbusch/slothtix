@@ -1,8 +1,11 @@
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+
+from flask_login import current_user
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.auth import admin_required
 from app.extensions import db
-from app.forms import CategoryForm, SettingsForm, TeamForm
+from app.forms import CategoryForm, PasswortAendernForm, SettingsForm, TeamForm
 from app.models import Category, Settings, Team
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -43,6 +46,15 @@ def update_team(team_id):
     team = db.get_or_404(Team, team_id)
     form = TeamForm()
     if form.validate_on_submit():
+        # Ohne diese Prüfung läuft ein Umbenennen auf einen schon
+        # vergebenen Namen in die UNIQUE-Constraint der Datenbank und
+        # damit in einen IntegrityError - also HTTP 500 statt einer
+        # Meldung. create_team prüft das seit jeher, update_team nicht.
+        kollision = Team.query.filter(Team.name == form.name.data, Team.id != team.id).first()
+        if kollision is not None:
+            flash("Ein Team mit diesem Namen existiert bereits.", "error")
+            return redirect(url_for("admin.teams"))
+
         team.name = form.name.data
         team.ad_gruppe_agenten = form.ad_gruppe_agenten.data or None
         db.session.commit()
@@ -103,3 +115,40 @@ def settings_view():
         return redirect(url_for("admin.settings_view"))
 
     return render_template("admin/settings.html", form=form)
+
+
+@admin_bp.route("/passwort", methods=["GET", "POST"])
+@admin_required
+def change_password():
+    """Passwortwechsel für den lokalen Admin-Account.
+
+    Betrifft nur diesen einen Account: Alle übrigen Nutzer authentifizieren
+    sich per LDAP-Bind, für sie gibt es hier nichts zu ändern. Ohne diese
+    Seite ließ sich das Passwort überhaupt nicht wechseln - es stammte
+    dauerhaft aus ADMIN_PASSWORD und lag damit im Klartext in der
+    Container-Umgebung."""
+    if current_user.ad_username is not None:
+        flash(
+            "Dieser Account meldet sich über das AD an - das Passwort wird "
+            "dort verwaltet.",
+            "error",
+        )
+        return redirect(url_for("admin.teams"))
+
+    form = PasswortAendernForm()
+    if form.validate_on_submit():
+        if not check_password_hash(current_user.passwort_hash or "", form.aktuell.data):
+            flash("Das aktuelle Passwort ist falsch.", "error")
+        else:
+            current_user.passwort_hash = generate_password_hash(form.neu.data)
+            db.session.commit()
+            flash(
+                "Passwort geändert. ADMIN_PASSWORD kann jetzt aus der .env "
+                "entfernt werden.",
+                "success",
+            )
+            return redirect(url_for("admin.change_password"))
+    elif request.method == "POST":
+        flash("Passwort konnte nicht geändert werden.", "error")
+
+    return render_template("admin/passwort.html", form=form)

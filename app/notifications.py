@@ -5,7 +5,7 @@ Interne Kommentare lösen bewusst keine Benachrichtigung an den User aus.
 
 from flask import url_for
 
-from app.mail import send_mail
+from app.mail import send_mail, send_mails
 from app.models import Sichtbarkeit
 
 
@@ -14,13 +14,12 @@ def _ticket_url(ticket):
 
 
 def notify_ticket_created(ticket):
-    for agent in ticket.team.mitglieder:
-        send_mail(
-            agent.email,
-            f"[SlothTix] Neues Ticket in {ticket.team.name}: {ticket.titel}",
-            f"Ein neues Ticket wurde erstellt von {ticket.ersteller.anzeigename}:\n\n"
-            f"{ticket.titel}\n\n{ticket_summary(ticket)}",
-        )
+    betreff = f"[SlothTix] Neues Ticket in {ticket.team.name}: {ticket.titel}"
+    text = (
+        f"Ein neues Ticket wurde erstellt von {ticket.ersteller.anzeigename}:\n\n"
+        f"{ticket.titel}\n\n{ticket_summary(ticket)}"
+    )
+    send_mails([(agent.email, betreff, text) for agent in ticket.team.mitglieder])
 
 
 def notify_comment_added(comment):
@@ -30,15 +29,18 @@ def notify_comment_added(comment):
 
     if comment.autor_id == ticket.ersteller_id:
         # Der Ersteller hat selbst geantwortet -> Team-Agenten informieren.
-        for agent in ticket.team.mitglieder:
-            if agent.id == comment.autor_id:
-                continue
-            send_mail(
-                agent.email,
-                f"[SlothTix] Neue Antwort zu Ticket #{ticket.id}: {ticket.titel}",
-                f"{comment.autor.anzeigename} hat geantwortet:\n\n{comment.text}\n\n"
-                f"{_ticket_url(ticket)}",
-            )
+        betreff = f"[SlothTix] Neue Antwort zu Ticket #{ticket.id}: {ticket.titel}"
+        text = (
+            f"{comment.autor.anzeigename} hat geantwortet:\n\n{comment.text}\n\n"
+            f"{_ticket_url(ticket)}"
+        )
+        send_mails(
+            [
+                (agent.email, betreff, text)
+                for agent in ticket.team.mitglieder
+                if agent.id != comment.autor_id
+            ]
+        )
     else:
         send_mail(
             ticket.ersteller.email,

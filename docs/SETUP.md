@@ -44,7 +44,7 @@ Danach `.env` bearbeiten:
 | `SMTP_CA_CERT_PATH` | Optional: CA-Zertifikat, falls der Mailserver ein Zertifikat der eigenen CA nutzt. Leer = System-CAs |
 | `SMTP_TLS_INSECURE` | Notausgang für selbstsignierte Mailserver-Zertifikate – schaltet die Prüfung ab, nur bewusst setzen |
 | `LDAP_CA_CERT_PATH` | Pfad zur CA-Zertifikatsdatei für die LDAPS-Prüfung (siehe unten) |
-| `FORCE_HTTPS` | `true`, sobald Caddy als Reverse-Proxy davor läuft (siehe Abschnitt 5) – lokal ohne Proxy auf `false` lassen |
+| `FORCE_HTTPS` | `true`, sobald Caddy als Reverse-Proxy davor läuft (siehe Abschnitt 5) – nur lokal ohne Proxy auf `false` setzen |
 
 **Wichtig:** `.env` enthält Geheimnisse und darf nie ins Git-Repository
 committet werden (ist bereits über `.gitignore` ausgeschlossen).
@@ -97,6 +97,12 @@ Für einen reinen Test **ohne** eigene Domain/DNS kann `docker-compose.yml`
 vorübergehend so angepasst werden, dass `slothtix` direkt Port 8000
 veröffentlicht (`ports: ["8000:8000"]`) und der `caddy`-Service entfällt –
 dann ist die App nur per HTTP unter `http://<server-ip>:8000` erreichbar.
+
+> **Nur für Tests.** In dieser Variante ist die App direkt erreichbar,
+> vertraut aber weiterhin den `X-Forwarded-*`-Headern des (nicht mehr
+> vorhandenen) Proxys. Jeder Client kann damit Host und Protokoll
+> vortäuschen und so z. B. die Ticket-Links in Benachrichtigungs-E-Mails
+> auf eine fremde Domain umlenken. Nicht dauerhaft so betreiben.
 
 ## 6. Bauen und starten
 
@@ -162,6 +168,11 @@ Ergänzen (täglich um 3 Uhr, Sicherung landet unter `/backups`):
 0 3 * * * /pfad/zu/slothtix/scripts/backup.sh /pfad/zu/slothtix/instance /backups
 ```
 
+Das Skript nutzt die Backup-API von SQLite (nicht `cp`), sodass die Sicherung
+auch bei laufendem Betrieb in sich stimmig ist. Sicherungen, die älter als 14
+Tage sind, werden automatisch entfernt; ein abweichender Wert lässt sich als
+dritter Parameter übergeben.
+
 ## Fehlerdiagnose
 
 **Login schlägt mit „Benutzername oder Passwort falsch" fehl, obwohl beides
@@ -184,6 +195,19 @@ docker compose exec slothtix python -c "from app import create_app; from app.ext
 ```bash
 LDAPTLS_REQCERT=never ldapsearch -x -H ldaps://<ucs-host>:<port> \
   -D "<bind-dn>" -w '<passwort>' -b "<base-dn>" "(uid=<testuser>)"
+```
+
+**Admin-Passwort ändern:** Als Admin unter **Passwort** in der Navigation.
+Danach kann `ADMIN_PASSWORD` aus der `.env` entfernt werden – die Variable
+wird nur beim allerersten Start ausgewertet, liegt aber ansonsten dauerhaft
+im Klartext in der Container-Umgebung (`docker inspect`).
+
+**Rechte im Volume nach dem Update auf einen unprivilegierten Container:**
+Die Anwendung läuft seit dem Umstieg als Nutzer `slothtix` (UID 10001), nicht
+mehr als `root`. Ein Volume aus einer älteren Version gehört noch `root`;
+falls der Container mit „permission denied" auf `instance/` startet, einmalig:
+```bash
+docker compose run --rm --user root slothtix chown -R 10001:10001 /app/instance
 ```
 
 **Container-Update nach Code-Änderungen:**

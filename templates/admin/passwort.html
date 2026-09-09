@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Passwort ändern – SlothTix{% endblock %}
+{% block content %}
+<h1>Passwort ändern</h1>
+<div class="card">
+    <p class="hint">Gilt nur für den lokalen Admin-Account. Alle übrigen Nutzer
+        melden sich über das AD an; deren Passwörter werden dort verwaltet.</p>
+    <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="field">
+            {{ form.aktuell.label }}
+            {{ form.aktuell() }}
+        </div>
+        <div class="field">
+            {{ form.neu.label }}
+            {{ form.neu() }}
+            {% if form.neu.errors %}<ul class="field-errors">{% for error in form.neu.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        <div class="field">
+            {{ form.wiederholung.label }}
+            {{ form.wiederholung() }}
+            {% if form.wiederholung.errors %}<ul class="field-errors">{% for error in form.wiederholung.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        <button type="submit">Passwort ändern</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,10 +1,15 @@
+import logging
 import os
 import uuid
 
+from flask import current_app
+from sqlalchemy import event
 from werkzeug.utils import secure_filename
 
 from app.extensions import db
 from app.models import Attachment, Settings
+
+logger = logging.getLogger(__name__)
 
 # Erlaubte Dateiendungen und der Content-Type, unter dem sie später
 # ausgeliefert werden. Bewusst eine feste Zuordnung statt
@@ -132,3 +137,42 @@ def save_attachments(app, files, uploaded_by, ticket=None, comment=None):
         saved.append(attachment)
 
     return saved
+
+
+# Löscht die Datei auf der Platte, wenn eine Attachment-Zeile verschwindet.
+#
+# Ticket und Kommentar räumen ihre Anhänge per cascade="all, delete-orphan"
+# ab - das entfernt aber nur die Datenbankzeile und ließe die Datei unter
+# instance/uploads/ für immer liegen. Die Listener hängen am
+# Session-Factory und werden deshalb beim Import einmalig registriert, nicht
+# pro create_app(): Sonst sammelten sich bei mehreren Anwendungsinstanzen
+# (z. B. je Test eine) Handler an, die auf den instance_path der jeweils
+# ersten zeigen.
+
+
+@event.listens_for(db.session, "persistent_to_deleted")
+def _merke_geloeschte_datei(session, instance):
+    if isinstance(instance, Attachment):
+        # Vollständigen Pfad sofort auflösen - nach dem Commit ist der
+        # Request-Kontext unter Umständen schon weg.
+        session.info.setdefault("geloeschte_anhaenge", []).append(
+            os.path.join(current_app.instance_path, instance.pfad)
+        )
+
+
+@event.listens_for(db.session, "after_commit")
+def _entferne_geloeschte_dateien(session):
+    # Erst nach dem Commit: Bei einem Rollback bliebe die Zeile bestehen,
+    # eine schon gelöschte Datei wäre dagegen unwiederbringlich weg.
+    for pfad in session.info.pop("geloeschte_anhaenge", []):
+        try:
+            os.remove(pfad)
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            logger.warning("Anhang %s konnte nicht gelöscht werden: %s", pfad, exc)
+
+
+@event.listens_for(db.session, "after_rollback")
+def _verwirf_vormerkungen(session):
+    session.info.pop("geloeschte_anhaenge", None)

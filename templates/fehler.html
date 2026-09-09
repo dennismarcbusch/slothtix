@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} – SlothTix{% endblock %}
+{% block content %}
+<div class="card auth-card">
+    <h1>{{ code }}</h1>
+    <p>{{ meldung }}</p>
+    <p><a href="{{ url_for('main.index') }}">Zurück zur Übersicht</a></p>
+</div>
+{% endblock %}

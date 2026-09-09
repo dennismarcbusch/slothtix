@@ -1,7 +1,16 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, IntegerField, MultipleFileField, SelectField, StringField, TextAreaField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional
+from wtforms import (
+    BooleanField,
+    IntegerField,
+    MultipleFileField,
+    PasswordField,
+    SelectField,
+    StringField,
+    TextAreaField,
+)
+from wtforms.validators import DataRequired, EqualTo, Length, NumberRange, Optional
 
+from app.config import Config
 from app.models import Sichtbarkeit, TicketPrioritaet
 
 
@@ -64,8 +73,26 @@ class SettingsForm(FlaskForm):
     smtp_username = StringField("SMTP-Benutzername", validators=[Optional(), Length(max=255)])
     smtp_from = StringField("SMTP Absenderadresse", validators=[Optional(), Length(max=255)])
     anhang_max_groesse_mb = IntegerField(
-        "Anhang-Größenlimit (MB)", validators=[DataRequired(), NumberRange(min=1, max=1000)]
+        "Anhang-Größenlimit (MB)",
+        validators=[DataRequired(), NumberRange(min=1, max=Config.MAX_UPLOAD_MB)],
     )
     alte_tickets_tage = IntegerField(
         "Frist für 'altes' Ticket (Tage)", validators=[DataRequired(), NumberRange(min=1, max=365)]
+    )
+
+
+class PasswortAendernForm(FlaskForm):
+    aktuell = PasswordField("Aktuelles Passwort", validators=[DataRequired()])
+    neu = PasswordField(
+        "Neues Passwort",
+        validators=[
+            DataRequired(),
+            # Zwölf Zeichen, weil dieser Account als einziger ohne AD und
+            # damit ohne dessen Passwortrichtlinie auskommt.
+            Length(min=12, message="Das neue Passwort muss mindestens 12 Zeichen lang sein."),
+        ],
+    )
+    wiederholung = PasswordField(
+        "Neues Passwort wiederholen",
+        validators=[DataRequired(), EqualTo("neu", message="Die Passwörter stimmen nicht überein.")],
     )

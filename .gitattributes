@@ -1,1 +1,3 @@
 *.sh text eol=lf
+# Wird im Linux-Container ausgeführt - CRLF hätte dort nichts zu suchen.
+Dockerfile text eol=lf

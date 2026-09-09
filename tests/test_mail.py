@@ -112,3 +112,105 @@ def test_smtp_tls_insecure_schaltet_die_pruefung_ab(app, monkeypatch):
 
     assert erfasst["context"].verify_mode == ssl.CERT_NONE
     assert erfasst["context"].check_hostname is False
+
+
+class SammelndeSMTP:
+    """Fake, der mitzählt, wie oft eine Verbindung aufgebaut wurde."""
+
+    verbindungen = 0
+
+    def __init__(self, host, port, timeout=10):
+        type(self).verbindungen += 1
+        self.gesendet = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def starttls(self, context=None):
+        pass
+
+    def login(self, username, password):
+        pass
+
+    def sendmail(self, from_addr, to_addrs, message):
+        SammelndeSMTP.nachrichten.append((to_addrs[0], message))
+
+
+def test_mehrere_empfaenger_teilen_sich_eine_verbindung(app, monkeypatch):
+    """Vorher baute jede Benachrichtigung ihre eigene Verbindung mit 10 s
+    Timeout auf - bei einem großen Team hing der Request minutenlang."""
+    from app.mail import send_mails
+
+    SammelndeSMTP.verbindungen = 0
+    SammelndeSMTP.nachrichten = []
+    monkeypatch.setattr("smtplib.SMTP", SammelndeSMTP)
+
+    with app.app_context():
+        from app.extensions import db
+
+        settings = Settings.get_or_create()
+        settings.smtp_host = "mail.example.local"
+        db.session.commit()
+
+        send_mails([(f"agent{i}@example.local", "Betreff", "Text") for i in range(5)])
+
+    assert SammelndeSMTP.verbindungen == 1
+    assert len(SammelndeSMTP.nachrichten) == 5
+
+
+def test_zeilenumbruch_im_betreff_verhindert_den_versand_nicht(app, monkeypatch):
+    """Ein Ticket-Titel mit Zeilenumbruch ließ msg.as_string() scheitern -
+    die Benachrichtigung verschwand lautlos im pauschalen except."""
+    from app.mail import send_mail
+
+    SammelndeSMTP.verbindungen = 0
+    SammelndeSMTP.nachrichten = []
+    monkeypatch.setattr("smtplib.SMTP", SammelndeSMTP)
+
+    with app.app_context():
+        from app.extensions import db
+
+        settings = Settings.get_or_create()
+        settings.smtp_host = "mail.example.local"
+        db.session.commit()
+
+        send_mail("empfaenger@example.local", "Titel\nBcc: fremd@example.local", "Text")
+
+    assert len(SammelndeSMTP.nachrichten) == 1
+    _, nachricht = SammelndeSMTP.nachrichten[0]
+    assert "Subject: Titel Bcc: fremd@example.local" in nachricht
+    assert "\nBcc:" not in nachricht
+
+
+def test_ein_kaputter_empfaenger_reisst_die_uebrigen_nicht_mit(app, monkeypatch):
+    from app.mail import send_mails
+
+    gesendet = []
+
+    class TeilweiseKaputt(SammelndeSMTP):
+        def sendmail(self, from_addr, to_addrs, message):
+            if to_addrs[0] == "kaputt@example.local":
+                raise OSError("Empfänger abgelehnt")
+            gesendet.append(to_addrs[0])
+
+    monkeypatch.setattr("smtplib.SMTP", TeilweiseKaputt)
+
+    with app.app_context():
+        from app.extensions import db
+
+        settings = Settings.get_or_create()
+        settings.smtp_host = "mail.example.local"
+        db.session.commit()
+
+        send_mails(
+            [
+                ("erster@example.local", "B", "T"),
+                ("kaputt@example.local", "B", "T"),
+                ("dritter@example.local", "B", "T"),
+            ]
+        )
+
+    assert gesendet == ["erster@example.local", "dritter@example.local"]

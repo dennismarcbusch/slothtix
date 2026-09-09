@@ -101,3 +101,104 @@ def test_settings_roundtrip(app, client, admin_user):
         assert settings.ldap_port == 636
         assert settings.anhang_max_groesse_mb == 10
         assert settings.alte_tickets_tage == 14
+
+
+def test_team_umbenennen_auf_vorhandenen_namen_wird_abgefangen(app, client, admin_user, make_team):
+    """Lief vorher in die UNIQUE-Constraint und damit in einen HTTP 500."""
+    with app.app_context():
+        make_team(name="IT")
+        zweites = make_team(name="Hausmeister", kategorien=())
+        zweites_id = zweites.id
+
+    login_as(client, admin_user)
+    response = client.post(
+        f"/admin/teams/{zweites_id}/aktualisieren",
+        data={"name": "IT", "ad_gruppe_agenten": ""},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "existiert bereits" in response.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.get(Team, zweites_id).name == "Hausmeister"
+
+
+def test_admin_kann_eigenes_passwort_aendern(app, client, admin_user):
+    login_as(client, admin_user)
+
+    response = client.post(
+        "/admin/passwort",
+        data={
+            "aktuell": "adminpass",
+            "neu": "ein-langes-neues-passwort",
+            "wiederholung": "ein-langes-neues-passwort",
+        },
+        follow_redirects=True,
+    )
+    assert "Passwort geändert" in response.get_data(as_text=True)
+
+    client.post("/logout")
+    alt = client.post("/login", data={"username": "admin", "password": "adminpass"})
+    assert b"Benutzername oder Passwort falsch" in alt.data
+
+    neu = client.post(
+        "/login", data={"username": "admin", "password": "ein-langes-neues-passwort"}
+    )
+    assert neu.status_code == 302
+
+
+def test_passwortwechsel_verlangt_das_aktuelle_passwort(app, client, admin_user):
+    login_as(client, admin_user)
+
+    response = client.post(
+        "/admin/passwort",
+        data={
+            "aktuell": "falsch",
+            "neu": "ein-langes-neues-passwort",
+            "wiederholung": "ein-langes-neues-passwort",
+        },
+        follow_redirects=True,
+    )
+
+    assert "aktuelle Passwort ist falsch" in response.get_data(as_text=True)
+    with app.app_context():
+        from werkzeug.security import check_password_hash
+        from app.models import User
+
+        admin = User.query.filter_by(ist_admin=True).first()
+        assert check_password_hash(admin.passwort_hash, "adminpass")
+
+
+def test_passwortwechsel_lehnt_zu_kurzes_passwort_ab(app, client, admin_user):
+    login_as(client, admin_user)
+
+    response = client.post(
+        "/admin/passwort",
+        data={"aktuell": "adminpass", "neu": "kurz", "wiederholung": "kurz"},
+        follow_redirects=True,
+    )
+    assert "mindestens 12 Zeichen" in response.get_data(as_text=True)
+
+
+def test_passwortwechsel_verlangt_uebereinstimmung(app, client, admin_user):
+    login_as(client, admin_user)
+
+    response = client.post(
+        "/admin/passwort",
+        data={
+            "aktuell": "adminpass",
+            "neu": "ein-langes-neues-passwort",
+            "wiederholung": "ein-anderes-langes-passwort",
+        },
+        follow_redirects=True,
+    )
+    assert "stimmen nicht überein" in response.get_data(as_text=True)
+
+
+def test_passwortseite_ist_fuer_nicht_admins_gesperrt(app, client, make_team, make_user):
+    with app.app_context():
+        team = make_team()
+        agent = make_user(teams=[team])
+        login_as(client, agent)
+
+    assert client.get("/admin/passwort").status_code == 403

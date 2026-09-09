@@ -117,12 +117,14 @@ class Ticket(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titel = db.Column(db.String(255), nullable=False)
     beschreibung = db.Column(db.Text, nullable=False)
-    team_id = db.Column(db.Integer, db.ForeignKey("team.id"), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey("team.id"), nullable=False, index=True)
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"), nullable=False)
-    ersteller_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    zugewiesen_an_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    ersteller_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    zugewiesen_an_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
+    # Indiziert, weil die Übersicht praktisch immer nach Team/Ersteller
+    # eingrenzt und geschlossene Tickets standardmäßig ausblendet.
     status = db.Column(
-        db.Enum(TicketStatus), nullable=False, default=TicketStatus.OFFEN
+        db.Enum(TicketStatus), nullable=False, default=TicketStatus.OFFEN, index=True
     )
     prioritaet = db.Column(db.Enum(TicketPrioritaet), nullable=False)
     erstellt_am = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

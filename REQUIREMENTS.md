@@ -221,9 +221,10 @@ behalten werden:
 
 1. **Session-Gültigkeit vs. JIT-Sync:** Da der AD-Abgleich nur beim Login
    erfolgt, bleibt eine bestehende Session aktiv, auch wenn die AD-Gruppe
-   zwischenzeitlich entzogen wurde. Falls ein sofortiger Entzug wichtig ist,
-   müsste zusätzlich eine kurze Session-Lebensdauer oder ein periodischer
-   Re-Check ergänzt werden.
+   zwischenzeitlich entzogen wurde. Eine Sitzung ist inzwischen auf absolut
+   8 Stunden begrenzt (`Config.SESSION_MAX_ALTER`), womit der Entzug
+   spätestens beim nächsten Login greift. Für einen *sofortigen* Entzug
+   wäre weiterhin ein periodischer Re-Check gegen das AD nötig.
 2. **Aufbewahrung/Löschung** geschlossener Tickets und personenbezogener Daten
    (DSGVO-Löschkonzept) ist noch zu definieren.
 3. **Weitere Teams** (Verwaltung etc.) sind strukturell bereits vorgesehen
@@ -252,7 +253,7 @@ behalten werden:
 | Team-Mitgliedschaft | Mehrere Teams pro Agent möglich |
 | Ticket-Status | Offen / In Bearbeitung / Gelöst / Geschlossen |
 | Priorität | Niedrig / Mittel / Hoch |
-| Anhänge | Ja, Größenlimit konfigurierbar (Standard 5 MB) |
+| Anhänge | Ja, nur PNG/JPEG/GIF/PDF (Endung und Dateiinhalt werden geprüft), Größenlimit konfigurierbar (Standard 5 MB, max. 50 MB) |
 | Screenshot-Einfügen | Per Copy & Paste (Strg+V) direkt in der Eingabemaske |
 | Geschlossene Tickets in Übersicht | Ein-/ausblendbar, standardmäßig ausgeblendet |
 | Benachrichtigungen | Per E-Mail |

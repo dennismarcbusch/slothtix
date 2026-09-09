@@ -1,7 +1,18 @@
 import functools
+from datetime import datetime
 from urllib.parse import urlparse
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_login import (
     LoginManager,
     current_user,
@@ -19,6 +30,10 @@ from app.extensions import db
 from app.ldap_service import LdapAuthError
 from app.ldap_service import authenticate as ldap_authenticate
 from app.models import Settings, Team, User, utcnow
+
+# Zeitpunkt der Anmeldung, als ISO-String in der Session. Grundlage für die
+# absolute Sitzungsdauer (Config.SESSION_MAX_ALTER).
+ANGEMELDET_SEIT = "angemeldet_seit"
 
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
@@ -64,6 +79,41 @@ def sync_user_from_ldap(username, ldap_user, settings):
     user.letzter_login_am = utcnow()
     db.session.commit()
     return user
+
+
+@auth_bp.before_app_request
+def sitzung_ablaufen_lassen():
+    """Beendet Sitzungen, die älter als Config.SESSION_MAX_ALTER sind.
+
+    Flask allein liefert das nicht: PERMANENT_SESSION_LIFETIME wird bei
+    jedem Request neu aufgeschoben (SESSION_REFRESH_EACH_REQUEST), womit
+    eine dauerhaft geöffnete Registerkarte die Anmeldung endlos am Leben
+    hielte. Der Zeitstempel in der Session macht die Grenze absolut."""
+    # Statische Dateien überspringen: current_user auszuwerten lädt den
+    # Nutzer aus der Datenbank, und eine Seite zieht ein halbes Dutzend
+    # CSS-/Icon-Anfragen nach sich.
+    if request.endpoint == "static":
+        return
+
+    if not current_user.is_authenticated:
+        return
+
+    seit = session.get(ANGEMELDET_SEIT)
+    if seit is None:
+        # Sitzung aus der Zeit vor dieser Prüfung (oder von Hand gesetzt):
+        # ab jetzt mitzählen, statt sie sofort zu beenden.
+        session[ANGEMELDET_SEIT] = utcnow().isoformat()
+        return
+
+    try:
+        angemeldet_seit = datetime.fromisoformat(seit)
+    except ValueError:
+        angemeldet_seit = None
+
+    if angemeldet_seit is None or utcnow() - angemeldet_seit > current_app.config["SESSION_MAX_ALTER"]:
+        logout_user()
+        flash("Die Sitzung ist abgelaufen. Bitte melde dich erneut an.", "error")
+        return redirect(url_for("auth.login"))
 
 
 def _ist_sicheres_ziel(ziel):
@@ -157,6 +207,11 @@ def login():
         user.letzter_login_am = utcnow()
         db.session.commit()
         login_user(user)
+        # permanent=True aktiviert das Ablaufdatum am Cookie; der
+        # Zeitstempel trägt zusätzlich die absolute Grenze (siehe
+        # sitzung_ablaufen_lassen).
+        session.permanent = True
+        session[ANGEMELDET_SEIT] = utcnow().isoformat()
         next_url = request.args.get("next")
         if not _ist_sicheres_ziel(next_url):
             next_url = None

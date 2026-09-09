@@ -24,6 +24,9 @@
             {% if current_user.ist_admin %}
             <a href="{{ url_for('admin.teams') }}">Teams</a>
             <a href="{{ url_for('admin.settings_view') }}">Einstellungen</a>
+            {% if not current_user.ad_username %}
+            <a href="{{ url_for('admin.change_password') }}">Passwort</a>
+            {% endif %}
             {% endif %}
         </nav>
         <form method="post" action="{{ url_for('auth.logout') }}" class="logout-form">

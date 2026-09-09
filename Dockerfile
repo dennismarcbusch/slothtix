@@ -9,7 +9,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN mkdir -p instance
+
+# Die Anwendung läuft als unprivilegierter Nutzer - ein Fehler in der App
+# soll nicht gleich Root-Rechte im Container bedeuten. instance/ gehört
+# ihm, weil dort die SQLite-Datei und die Uploads entstehen.
+RUN useradd --create-home --uid 10001 slothtix \
+    && mkdir -p instance \
+    && chown -R slothtix:slothtix /app
+USER slothtix
 
 EXPOSE 8000
 

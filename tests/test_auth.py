@@ -1,7 +1,9 @@
+from datetime import timedelta
+
 from app.auth import sync_user_from_ldap
 from app.extensions import db
 from app.ldap_service import LdapAuthError, LdapUser
-from app.models import Settings, User
+from app.models import Settings, User, utcnow
 
 
 def test_local_admin_can_log_in(client):
@@ -226,3 +228,49 @@ def test_fehlende_gruppenmitgliedschaft_zaehlt_nicht_als_fehlversuch(
 
     with app.app_context():
         assert LoginAttempt.query.count() == 0
+
+
+def test_sitzung_laeuft_nach_maximalalter_ab(app, client):
+    """Die Sitzung ist absolut begrenzt, nicht nur im Leerlauf - sonst
+    hielte eine offene Registerkarte die Anmeldung endlos am Leben."""
+    from app.auth import ANGEMELDET_SEIT
+
+    client.post("/login", data={"username": "admin", "password": "adminpass"})
+    assert client.get("/tickets/").status_code == 200
+
+    ueberfaellig = utcnow() - app.config["SESSION_MAX_ALTER"] - timedelta(minutes=1)
+    with client.session_transaction() as sess:
+        sess[ANGEMELDET_SEIT] = ueberfaellig.isoformat()
+
+    response = client.get("/tickets/")
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+
+
+def test_sitzung_bleibt_innerhalb_des_maximalalters_gueltig(app, client):
+    from app.auth import ANGEMELDET_SEIT
+
+    client.post("/login", data={"username": "admin", "password": "adminpass"})
+
+    with client.session_transaction() as sess:
+        sess[ANGEMELDET_SEIT] = (utcnow() - timedelta(hours=1)).isoformat()
+
+    assert client.get("/tickets/").status_code == 200
+
+
+def test_login_setzt_anmeldezeitpunkt(client):
+    from app.auth import ANGEMELDET_SEIT
+
+    client.post("/login", data={"username": "admin", "password": "adminpass"})
+
+    with client.session_transaction() as sess:
+        assert ANGEMELDET_SEIT in sess
+        assert sess["_permanent"] is True
+
+
+def test_session_cookie_hat_samesite_und_httponly(client):
+    client.post("/login", data={"username": "admin", "password": "adminpass"})
+    cookie = "; ".join(client.get("/tickets/").headers.getlist("Set-Cookie"))
+    if cookie:
+        assert "HttpOnly" in cookie
+        assert "SameSite=Lax" in cookie
