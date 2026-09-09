@@ -13,4 +13,8 @@ RUN mkdir -p instance
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "flask db upgrade && gunicorn -w 4 -b 0.0.0.0:8000 wsgi:app"]
+# --preload lädt die App einmal im Master-Prozess, bevor die Worker
+# geforkt werden - sonst würde jeder der 4 Worker beim eigenen Import
+# unabhängig create_app() (und damit den Admin-Bootstrap) ausführen und
+# es könnten mehrere Admin-User gleichzeitig angelegt werden.
+CMD ["sh", "-c", "flask db upgrade && gunicorn --preload -w 4 -b 0.0.0.0:8000 wsgi:app"]

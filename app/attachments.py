@@ -43,9 +43,12 @@ def save_attachments(app, files, uploaded_by, ticket=None, comment=None):
         if not file or not file.filename:
             continue
 
+        # Dateiendung hat Vorrang vor dem client-gelieferten Content-Type:
+        # Letzterer wird vom Client selbst gesetzt und ist daher trivial
+        # fälschbar (z. B. ein Skript mit vorgetäuschtem "image/png").
         mime_type = (
-            file.mimetype
-            or mimetypes.guess_type(file.filename)[0]
+            mimetypes.guess_type(file.filename)[0]
+            or file.mimetype
             or "application/octet-stream"
         )
         if mime_type not in ERLAUBTE_MIME_TYPES:

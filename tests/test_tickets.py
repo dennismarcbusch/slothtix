@@ -376,3 +376,27 @@ def test_search_and_filters_narrow_overview(app, client, admin_user, make_team):
     response = client.get(f"/tickets/?team={team_b_id}").get_data(as_text=True)
     assert "Heizung kalt" in response
     assert "Drucker streikt" not in response
+
+
+def test_attachment_extension_wins_over_spoofed_content_type(app, client, admin_user, make_team):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        login_as(client, admin_user)
+
+        response = client.post(
+            "/tickets/neu",
+            data={
+                "titel": "Gespoofter Typ",
+                "beschreibung": "Test",
+                "team_id": str(team.id),
+                "category_id": str(category.id),
+                "prioritaet": "niedrig",
+                "anhaenge": (io.BytesIO(b"#!/bin/sh\necho hi"), "evil.sh", "image/png"),
+            },
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+
+        assert b"ist nicht erlaubt" in response.data
+        assert Ticket.query.filter_by(titel="Gespoofter Typ").first() is None

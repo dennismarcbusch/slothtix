@@ -64,3 +64,20 @@ def test_authenticate_requires_configured_settings():
 
     with pytest.raises(LdapAuthError):
         authenticate(settings, "servicepw", "jdoe", "secret", connection_factory=lambda u, p: None)
+
+
+def test_authenticate_handles_group_dn_with_escaped_comma():
+    entry = FakeEntry(
+        "uid=jdoe,dc=example,dc=local",
+        displayName="Jane Doe",
+        mail="jane@example.local",
+        memberOf=[r"cn=Doe\, John,ou=Groups,dc=example,dc=local", "cn=IT-Agenten,dc=example,dc=local"],
+    )
+    settings = FakeSettings()
+    users = {"jdoe": {"dn": "uid=jdoe,dc=example,dc=local", "password": "secret", "entry": entry}}
+    factory = make_connection_factory(settings.ldap_bind_dn, "servicepw", users)
+
+    result = authenticate(settings, "servicepw", "jdoe", "secret", connection_factory=factory)
+
+    assert "IT-Agenten" in result.gruppen
+    assert not any("Groups" in g for g in result.gruppen)

@@ -15,6 +15,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 
 from app.attachments import AttachmentError, save_attachments
 from app.extensions import db
@@ -60,10 +61,45 @@ def _sichtbare_kommentare(user, ticket):
     return [k for k in ticket.kommentare if k.sichtbarkeit == Sichtbarkeit.OEFFENTLICH]
 
 
+def _category_matches_team(category, team):
+    return category is not None and category.aktiv and team is not None and category.team_id == team.id
+
+
+def _group_categories_by_team(categories):
+    grouped = {}
+    for c in categories:
+        grouped.setdefault(c.team_id, []).append(c)
+    return grouped
+
+
+def _categories_json(categories):
+    grouped = _group_categories_by_team(categories)
+    return json.dumps(
+        {str(team_id): [{"id": c.id, "name": c.name} for c in cats] for team_id, cats in grouped.items()}
+    )
+
+
+def _log_history(ticket, aktion, alter_wert, neuer_wert):
+    db.session.add(
+        TicketHistory(
+            ticket_id=ticket.id,
+            aktion=aktion,
+            alter_wert=alter_wert,
+            neuer_wert=neuer_wert,
+            ausgefuehrt_von_id=current_user.id,
+        )
+    )
+
+
 @tickets_bp.route("/")
 @login_required
 def list_view():
-    query = Ticket.query
+    query = Ticket.query.options(
+        joinedload(Ticket.team),
+        joinedload(Ticket.category),
+        joinedload(Ticket.ersteller),
+        joinedload(Ticket.zugewiesen_an),
+    )
 
     if current_user.ist_admin:
         pass
@@ -147,17 +183,14 @@ def new():
     categories = Category.query.filter_by(aktiv=True).join(Team).order_by(Team.name, Category.name).all()
     form.category_id.choices = [(c.id, f"{c.team.name} – {c.name}") for c in categories]
 
-    categories_by_team = {}
-    for c in categories:
-        categories_by_team.setdefault(str(c.team_id), []).append({"id": c.id, "name": c.name})
-    categories_by_team_json = json.dumps(categories_by_team)
+    categories_by_team_json = _categories_json(categories)
 
     if form.validate_on_submit():
         team = db.session.get(Team, form.team_id.data)
         category = db.session.get(Category, form.category_id.data)
         if not team or not team.aktiv:
             flash("Ungültiges Team.", "error")
-        elif not category or category.team_id != team.id or not category.aktiv:
+        elif not _category_matches_team(category, team):
             flash("Die gewählte Kategorie gehört nicht zu diesem Team.", "error")
         else:
             ticket = Ticket(
@@ -209,10 +242,9 @@ def detail(ticket_id):
         comment_form.sichtbarkeit.data = Sichtbarkeit.OEFFENTLICH.value
 
     teams = Team.query.filter_by(aktiv=True).order_by(Team.name).all() if kann_verwalten else []
-    kategorien_by_team = {t.id: [c for c in t.kategorien if c.aktiv] for t in teams}
-    kategorien_by_team_json = json.dumps(
-        {str(tid): [{"id": c.id, "name": c.name} for c in cats] for tid, cats in kategorien_by_team.items()}
-    )
+    aktive_kategorien = [c for t in teams for c in t.kategorien if c.aktiv]
+    kategorien_by_team = _group_categories_by_team(aktive_kategorien)
+    kategorien_by_team_json = _categories_json(aktive_kategorien)
 
     return render_template(
         "tickets/detail.html",
@@ -289,15 +321,7 @@ def assign(ticket_id):
         ticket.zugewiesen_an_id = None
         neuer_wert = "Niemand"
 
-    db.session.add(
-        TicketHistory(
-            ticket_id=ticket.id,
-            aktion=HistorienAktion.ZUGEWIESEN,
-            alter_wert=alter_wert,
-            neuer_wert=neuer_wert,
-            ausgefuehrt_von_id=current_user.id,
-        )
-    )
+    _log_history(ticket, HistorienAktion.ZUGEWIESEN, alter_wert, neuer_wert)
     db.session.commit()
     if ticket.zugewiesen_an_id:
         notify_assigned(ticket)
@@ -321,15 +345,7 @@ def change_status(ticket_id):
     alter_status = ticket.status
     if neuer_status != alter_status:
         ticket.status = neuer_status
-        db.session.add(
-            TicketHistory(
-                ticket_id=ticket.id,
-                aktion=HistorienAktion.STATUS_GEAENDERT,
-                alter_wert=alter_status.value,
-                neuer_wert=neuer_status.value,
-                ausgefuehrt_von_id=current_user.id,
-            )
-        )
+        _log_history(ticket, HistorienAktion.STATUS_GEAENDERT, alter_status.value, neuer_status.value)
         db.session.commit()
         notify_status_changed(ticket, alter_status.value, neuer_status.value)
         flash("Status aktualisiert.", "success")
@@ -349,22 +365,14 @@ def change_team(ticket_id):
 
     if not neues_team or not neues_team.aktiv:
         flash("Ungültiges Team.", "error")
-    elif not neue_category or neue_category.team_id != neues_team.id:
+    elif not _category_matches_team(neue_category, neues_team):
         flash("Die Kategorie muss zum neuen Team passen.", "error")
     else:
         altes_team_name = ticket.team.name
         ticket.team_id = neues_team.id
         ticket.category_id = neue_category.id
         ticket.zugewiesen_an_id = None
-        db.session.add(
-            TicketHistory(
-                ticket_id=ticket.id,
-                aktion=HistorienAktion.TEAM_GEWECHSELT,
-                alter_wert=altes_team_name,
-                neuer_wert=neues_team.name,
-                ausgefuehrt_von_id=current_user.id,
-            )
-        )
+        _log_history(ticket, HistorienAktion.TEAM_GEWECHSELT, altes_team_name, neues_team.name)
         db.session.commit()
         flash("Team geändert.", "success")
 

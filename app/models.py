@@ -2,6 +2,7 @@ import enum
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 
@@ -230,12 +231,20 @@ class Settings(db.Model):
     def get_or_create(cls):
         settings = db.session.get(cls, 1)
         if settings is None:
-            settings = cls(id=1)
-            db.session.add(settings)
-            # flush() statt commit(): darf keine fremde, noch offene
-            # Transaktion des Aufrufers committen (z. B. ein bereits
-            # geflushtes, aber noch nicht bestätigtes Ticket).
-            db.session.flush()
+            try:
+                # SAVEPOINT statt äußerem commit()/rollback(): darf weder
+                # eine fremde offene Transaktion des Aufrufers committen
+                # (z. B. ein bereits geflushtes, aber noch nicht
+                # bestätigtes Ticket) noch sie bei einem Konflikt mit
+                # verwerfen.
+                with db.session.begin_nested():
+                    settings = cls(id=1)
+                    db.session.add(settings)
+                    db.session.flush()
+            except IntegrityError:
+                # Ein anderer Request hat die Singleton-Zeile gleichzeitig
+                # angelegt - dessen Zeile lesen statt eigene zu erzwingen.
+                settings = db.session.get(cls, 1)
         return settings
 
     def __repr__(self):

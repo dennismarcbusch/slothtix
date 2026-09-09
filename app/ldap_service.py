@@ -9,8 +9,9 @@ import logging
 from dataclasses import dataclass, field
 
 from ldap3 import ALL, Connection, Server
-from ldap3.core.exceptions import LDAPBindError, LDAPException
+from ldap3.core.exceptions import LDAPBindError, LDAPException, LDAPInvalidDnError
 from ldap3.utils.conv import escape_filter_chars
+from ldap3.utils.dn import parse_dn
 
 logger = logging.getLogger(__name__)
 
@@ -91,11 +92,21 @@ def authenticate(settings, bind_password, username, password, connection_factory
 
 
 def _extract_group_names(entry):
+    """Extrahiert den CN (bzw. den Wert der ersten RDN-Komponente) aus
+    jeder memberOf-DN. Nutzt ldap3s eigenen DN-Parser statt eines naiven
+    Komma-Splits, da RDN-Werte escapte Kommas enthalten können (z. B.
+    "CN=Doe\\, John,OU=Groups,..."), was ein simples split(",") zerstören
+    würde und Gruppenmitgliedschafts-Vergleiche stillschweigend fehlschlagen
+    ließe."""
     if "memberOf" not in entry or not entry.memberOf:
         return []
     names = []
     for dn in entry.memberOf:
-        first_rdn = str(dn).split(",")[0]
-        if "=" in first_rdn:
-            names.append(first_rdn.split("=", 1)[1])
+        try:
+            components = parse_dn(str(dn))
+        except LDAPInvalidDnError:
+            logger.warning("Ungültige DN in memberOf ignoriert: %r", dn)
+            continue
+        if components:
+            names.append(components[0][1])
     return names
