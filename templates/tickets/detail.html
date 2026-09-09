@@ -3,14 +3,26 @@
 {% block content %}
 <h1>#{{ ticket.id }} {{ ticket.titel }}</h1>
 
-<div class="ticket-meta">
-    <span>Team: {{ ticket.team.name }}</span>
-    <span>Kategorie: {{ ticket.category.name }}</span>
-    <span>Priorität: {{ ticket.prioritaet.value }}</span>
-    <span>Status: {{ ticket.status.value }}</span>
-    <span>Ersteller: {{ ticket.ersteller.anzeigename }}</span>
-    <span>Zugewiesen: {{ ticket.zugewiesen_an.anzeigename if ticket.zugewiesen_an else "–" }}</span>
-</div>
+<table class="ticket-meta-table">
+    <tbody>
+        <tr>
+            <th>Team</th><td>{{ ticket.team.name }}</td>
+            <th>Kategorie</th><td>{{ ticket.category.name }}</td>
+        </tr>
+        <tr>
+            <th>Priorität</th><td>{{ ticket.prioritaet.value }}</td>
+            <th>Status</th><td>{{ ticket.status.value }}</td>
+        </tr>
+        <tr>
+            <th>Ersteller</th><td>{{ ticket.ersteller.anzeigename }}</td>
+            <th>Zugewiesen</th><td>{{ ticket.zugewiesen_an.anzeigename if ticket.zugewiesen_an else "–" }}</td>
+        </tr>
+        <tr>
+            <th>Erstellt am</th><td>{{ ticket.erstellt_am.strftime("%d.%m.%Y %H:%M") }}</td>
+            <th>Zuletzt geändert</th><td>{{ ticket.aktualisiert_am.strftime("%d.%m.%Y %H:%M") }}</td>
+        </tr>
+    </tbody>
+</table>
 
 <div class="ticket-description">{{ ticket.beschreibung }}</div>
 
