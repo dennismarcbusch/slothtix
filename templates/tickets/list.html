@@ -58,7 +58,7 @@
         {% for ticket in tickets %}
         <tr class="prio-{{ ticket.prioritaet.value }}{% if ticket.status.value in ('offen', 'in_bearbeitung') and ticket.erstellt_am < alt_grenze %} ticket-alt{% endif %}">
             <td><a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">#{{ ticket.id }}</a></td>
-            <td><a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">{{ ticket.titel }}</a></td>
+            <td class="col-titel"><a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">{{ ticket.titel }}</a></td>
             <td>{{ ticket.team.name }}</td>
             <td>{{ ticket.category.name }}</td>
             <td>{{ ticket.prioritaet.value }}</td>
