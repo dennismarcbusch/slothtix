@@ -1,0 +1,13 @@
+services:
+  slothtix:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - slothtix-instance:/app/instance
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  slothtix-instance:
