@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen – SlothTix{% endblock %}
+{% block content %}
+<h1>Einstellungen</h1>
+<form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <fieldset>
+        <legend>Zugriff</legend>
+        <div class="field">{{ form.ad_gruppe_user.label }} {{ form.ad_gruppe_user() }}</div>
+    </fieldset>
+    <fieldset>
+        <legend>LDAP / UCS</legend>
+        <div class="field">{{ form.ldap_server.label }} {{ form.ldap_server() }}</div>
+        <div class="field">{{ form.ldap_port.label }} {{ form.ldap_port() }}</div>
+        <div class="field checkbox-field">{{ form.ldap_use_ssl() }} {{ form.ldap_use_ssl.label }}</div>
+        <div class="field">{{ form.ldap_base_dn.label }} {{ form.ldap_base_dn() }}</div>
+        <div class="field">{{ form.ldap_bind_dn.label }} {{ form.ldap_bind_dn() }}</div>
+        <p class="hint">Das Bind-Passwort wird aus der Umgebungsvariable LDAP_BIND_PASSWORD gelesen, nicht hier gespeichert.</p>
+    </fieldset>
+    <fieldset>
+        <legend>E-Mail (SMTP)</legend>
+        <div class="field">{{ form.smtp_host.label }} {{ form.smtp_host() }}</div>
+        <div class="field">{{ form.smtp_port.label }} {{ form.smtp_port() }}</div>
+        <div class="field">{{ form.smtp_username.label }} {{ form.smtp_username() }}</div>
+        <div class="field">{{ form.smtp_from.label }} {{ form.smtp_from() }}</div>
+        <p class="hint">Das SMTP-Passwort wird aus der Umgebungsvariable SMTP_PASSWORD gelesen.</p>
+    </fieldset>
+    <fieldset>
+        <legend>Sonstiges</legend>
+        <div class="field">{{ form.anhang_max_groesse_mb.label }} {{ form.anhang_max_groesse_mb() }}</div>
+        <div class="field">{{ form.alte_tickets_tage.label }} {{ form.alte_tickets_tage() }}</div>
+    </fieldset>
+    <button type="submit">Speichern</button>
+</form>
+{% endblock %}

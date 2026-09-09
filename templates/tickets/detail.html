@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Ticket #{{ ticket.id }} – SlothTix{% endblock %}
+{% block content %}
+<h1>#{{ ticket.id }} {{ ticket.titel }}</h1>
+
+<div class="ticket-meta">
+    <span>Team: {{ ticket.team.name }}</span>
+    <span>Kategorie: {{ ticket.category.name }}</span>
+    <span>Priorität: {{ ticket.prioritaet.value }}</span>
+    <span>Status: {{ ticket.status.value }}</span>
+    <span>Ersteller: {{ ticket.ersteller.anzeigename }}</span>
+    <span>Zugewiesen: {{ ticket.zugewiesen_an.anzeigename if ticket.zugewiesen_an else "–" }}</span>
+</div>
+
+<div class="ticket-description">{{ ticket.beschreibung }}</div>
+
+{% if ticket.anhaenge %}
+<div class="attachments">
+    <h3>Anhänge</h3>
+    <ul>
+        {% for a in ticket.anhaenge %}
+        <li><a href="{{ url_for('tickets.download_attachment', attachment_id=a.id) }}" target="_blank">{{ a.dateiname }}</a></li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if kann_verwalten %}
+<div class="ticket-actions">
+    <form method="post" action="{{ url_for('tickets.change_status', ticket_id=ticket.id) }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Status</label>
+        <select name="status">
+            {% for status in TicketStatus %}
+            <option value="{{ status.value }}" {% if ticket.status == status %}selected{% endif %}>{{ status.value }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Ändern</button>
+    </form>
+
+    <form method="post" action="{{ url_for('tickets.assign', ticket_id=ticket.id) }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Zuweisen an</label>
+        <select name="zugewiesen_an_id">
+            <option value="">Niemand</option>
+            {% for member in ticket.team.mitglieder %}
+            <option value="{{ member.id }}" {% if ticket.zugewiesen_an_id == member.id %}selected{% endif %}>{{ member.anzeigename }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Zuweisen</button>
+    </form>
+
+    <form method="post" action="{{ url_for('tickets.change_team', ticket_id=ticket.id) }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Team ändern</label>
+        <select name="team_id" id="team-change-select">
+            {% for team in teams %}
+            <option value="{{ team.id }}" {% if ticket.team_id == team.id %}selected{% endif %}>{{ team.name }}</option>
+            {% endfor %}
+        </select>
+        <select name="category_id" id="team-change-category">
+            {% for category in kategorien_by_team.get(ticket.team_id, []) %}
+            <option value="{{ category.id }}" {% if ticket.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Team wechseln</button>
+    </form>
+</div>
+{% endif %}
+
+<h2>Kommentare</h2>
+<ul class="comments">
+    {% for comment in kommentare %}
+    <li class="comment comment-{{ comment.sichtbarkeit.value }}">
+        <div class="comment-meta">
+            <strong>{{ comment.autor.anzeigename }}</strong>
+            <span>{{ comment.erstellt_am.strftime("%d.%m.%Y %H:%M") }}</span>
+            {% if comment.sichtbarkeit.value == "intern" %}<span class="badge">intern</span>{% endif %}
+        </div>
+        <div class="comment-text">{{ comment.text }}</div>
+        {% if comment.anhaenge %}
+        <ul class="attachments">
+            {% for a in comment.anhaenge %}
+            <li><a href="{{ url_for('tickets.download_attachment', attachment_id=a.id) }}" target="_blank">{{ a.dateiname }}</a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </li>
+    {% else %}
+    <li>Noch keine Kommentare.</li>
+    {% endfor %}
+</ul>
+
+<h3>Kommentar hinzufügen</h3>
+<form method="post" action="{{ url_for('tickets.add_comment', ticket_id=ticket.id) }}" enctype="multipart/form-data">
+    {{ comment_form.hidden_tag() }}
+    <div class="field">
+        {{ comment_form.text.label }}
+        {{ comment_form.text(rows=4) }}
+    </div>
+    {% if kann_verwalten %}
+    <div class="field">
+        {{ comment_form.sichtbarkeit.label }}
+        {{ comment_form.sichtbarkeit() }}
+    </div>
+    {% else %}
+    <input type="hidden" name="sichtbarkeit" value="oeffentlich">
+    {% endif %}
+    <div class="field paste-zone" tabindex="0" data-input-name="anhaenge">
+        <label>Anhänge</label>
+        {{ comment_form.anhaenge() }}
+        <div class="paste-hint">Hier hineinklicken und Strg+V drücken, um einen Screenshot direkt einzufügen.</div>
+        <div class="attachment-previews"></div>
+    </div>
+    <button type="submit">Kommentieren</button>
+</form>
+
+{% if kann_verwalten and ticket.historie %}
+<h3>Historie</h3>
+<ul class="history">
+    {% for eintrag in ticket.historie|sort(attribute="zeitstempel") %}
+    <li>{{ eintrag.zeitstempel.strftime("%d.%m.%Y %H:%M") }} – {{ eintrag.ausgefuehrt_von.anzeigename }}:
+        {{ eintrag.aktion.value }} ({{ eintrag.alter_wert }} → {{ eintrag.neuer_wert }})</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+{% if kann_verwalten %}
+<script>
+    const teamCategoryData = {{ kategorien_by_team_json|safe }};
+    const teamChangeSelect = document.getElementById("team-change-select");
+    const categoryChangeSelect = document.getElementById("team-change-category");
+    teamChangeSelect.addEventListener("change", function () {
+        const cats = teamCategoryData[teamChangeSelect.value] || [];
+        categoryChangeSelect.innerHTML = "";
+        cats.forEach(function (cat) {
+            const opt = document.createElement("option");
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            categoryChangeSelect.appendChild(opt);
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

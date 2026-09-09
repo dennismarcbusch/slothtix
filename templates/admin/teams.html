@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Teams – SlothTix{% endblock %}
+{% block content %}
+<h1>Teams</h1>
+
+<div class="card">
+    <h2>Neues Team</h2>
+    <form method="post" action="{{ url_for('admin.create_team') }}" class="inline-form">
+        {{ team_form.hidden_tag() }}
+        {{ team_form.name.label }} {{ team_form.name() }}
+        {{ team_form.ad_gruppe_agenten.label }} {{ team_form.ad_gruppe_agenten() }}
+        <button type="submit">Team anlegen</button>
+    </form>
+</div>
+
+{% for team in teams %}
+<div class="card">
+    <h2>{{ team.name }} {% if not team.aktiv %}<span class="badge">inaktiv</span>{% endif %}</h2>
+    <form method="post" action="{{ url_for('admin.update_team', team_id=team.id) }}" class="inline-form">
+        {{ team_form.hidden_tag() }}
+        <input type="text" name="name" value="{{ team.name }}">
+        <input type="text" name="ad_gruppe_agenten" value="{{ team.ad_gruppe_agenten or '' }}" placeholder="AD-Gruppe (Agenten)">
+        <button type="submit">Speichern</button>
+    </form>
+    <form method="post" action="{{ url_for('admin.toggle_team', team_id=team.id) }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">{{ "Deaktivieren" if team.aktiv else "Aktivieren" }}</button>
+    </form>
+
+    <h3>Kategorien</h3>
+    <ul>
+        {% for cat in team.kategorien %}
+        <li>
+            {{ cat.name }} {% if not cat.aktiv %}(inaktiv){% endif %}
+            <form method="post" action="{{ url_for('admin.toggle_category', category_id=cat.id) }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit">{{ "Deaktivieren" if cat.aktiv else "Aktivieren" }}</button>
+            </form>
+        </li>
+        {% else %}
+        <li>Noch keine Kategorien.</li>
+        {% endfor %}
+    </ul>
+    <form method="post" action="{{ url_for('admin.create_category', team_id=team.id) }}" class="inline-form">
+        {{ category_form.hidden_tag() }}
+        {{ category_form.name(placeholder="Neue Kategorie") }}
+        <button type="submit">Hinzufügen</button>
+    </form>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Neues Ticket – SlothTix{% endblock %}
+{% block content %}
+<h1>Neues Ticket</h1>
+<form method="post" enctype="multipart/form-data" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="field">
+        {{ form.titel.label }}
+        {{ form.titel() }}
+    </div>
+    <div class="field">
+        {{ form.team_id.label }}
+        {{ form.team_id() }}
+    </div>
+    <div class="field">
+        {{ form.category_id.label }}
+        {{ form.category_id(id="category-select") }}
+    </div>
+    <div class="field">
+        {{ form.prioritaet.label }}
+        {{ form.prioritaet() }}
+    </div>
+    <div class="field">
+        {{ form.beschreibung.label }}
+        {{ form.beschreibung(rows=6) }}
+    </div>
+
+    <div class="field paste-zone" tabindex="0" data-input-name="anhaenge">
+        <label>Anhänge</label>
+        {{ form.anhaenge() }}
+        <div class="paste-hint">Hier hineinklicken und Strg+V drücken, um einen Screenshot direkt einzufügen.</div>
+        <div class="attachment-previews"></div>
+    </div>
+
+    <button type="submit">Ticket erstellen</button>
+</form>
+
+<script>
+    const categoryData = {{ categories_by_team_json|safe }};
+    const teamSelect = document.querySelector('select[name="team_id"]');
+    const categorySelect = document.getElementById("category-select");
+
+    function filterCategories() {
+        const cats = categoryData[teamSelect.value] || [];
+        categorySelect.innerHTML = "";
+        cats.forEach(function (cat) {
+            const opt = document.createElement("option");
+            opt.value = cat.id;
+            opt.textContent = cat.name;
+            categorySelect.appendChild(opt);
+        });
+    }
+    teamSelect.addEventListener("change", filterCategories);
+    filterCategories();
+</script>
+{% endblock %}

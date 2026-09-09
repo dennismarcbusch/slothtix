@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Tickets – SlothTix{% endblock %}
+{% block content %}
+<div class="list-header">
+    <h1>Tickets</h1>
+    <a class="button" href="{{ url_for('tickets.new') }}">+ Neues Ticket</a>
+</div>
+
+<form method="get" class="filters">
+    <input type="text" name="q" placeholder="Suche…" value="{{ filters.get('q', '') }}">
+    <select name="team">
+        <option value="">Alle Teams</option>
+        {% for team in teams %}
+        <option value="{{ team.id }}" {% if filters.get('team')|string == team.id|string %}selected{% endif %}>{{ team.name }}</option>
+        {% endfor %}
+    </select>
+    <select name="kategorie">
+        <option value="">Alle Kategorien</option>
+        {% for category in categories %}
+        <option value="{{ category.id }}" {% if filters.get('kategorie')|string == category.id|string %}selected{% endif %}>{{ category.name }}</option>
+        {% endfor %}
+    </select>
+    <select name="status">
+        <option value="">Alle Status</option>
+        {% for status in TicketStatus %}
+        <option value="{{ status.value }}" {% if filters.get('status') == status.value %}selected{% endif %}>{{ status.value }}</option>
+        {% endfor %}
+    </select>
+    <select name="prioritaet">
+        <option value="">Alle Prioritäten</option>
+        {% for prio in TicketPrioritaet %}
+        <option value="{{ prio.value }}" {% if filters.get('prioritaet') == prio.value %}selected{% endif %}>{{ prio.value }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Filtern</button>
+</form>
+
+<form method="post" action="{{ url_for('tickets.toggle_closed') }}" class="closed-toggle">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">{{ "Geschlossene ausblenden" if show_closed else "Geschlossene einblenden" }}</button>
+</form>
+
+<div class="table-scroll">
+<table class="ticket-table">
+    <thead>
+        <tr>
+            <th>#</th><th>Titel</th><th>Team</th><th>Kategorie</th><th>Priorität</th>
+            <th>Status</th><th>Ersteller</th><th>Zugewiesen</th><th>Erstellt</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ticket in tickets %}
+        <tr class="prio-{{ ticket.prioritaet.value }}{% if ticket.status.value in ('offen', 'in_bearbeitung') and ticket.erstellt_am < alt_grenze %} ticket-alt{% endif %}">
+            <td><a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">#{{ ticket.id }}</a></td>
+            <td><a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">{{ ticket.titel }}</a></td>
+            <td>{{ ticket.team.name }}</td>
+            <td>{{ ticket.category.name }}</td>
+            <td>{{ ticket.prioritaet.value }}</td>
+            <td>{{ ticket.status.value }}</td>
+            <td>{{ ticket.ersteller.anzeigename }}</td>
+            <td>{{ ticket.zugewiesen_an.anzeigename if ticket.zugewiesen_an else "–" }}</td>
+            <td>{{ ticket.erstellt_am.strftime("%d.%m.%Y %H:%M") }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9">Keine Tickets gefunden.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

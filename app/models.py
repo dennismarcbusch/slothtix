@@ -1,11 +1,17 @@
 import enum
 from datetime import datetime, timezone
 
+from flask_login import UserMixin
+
 from app.extensions import db
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    """Naive UTC-Zeitstempel. SQLite verliert Zeitzoneninfo beim
+    Round-Trip ohnehin, daher wird konsequent naiv (aber UTC) gearbeitet,
+    um Vergleiche zwischen frisch erzeugten und aus der DB geladenen
+    Zeitstempeln zu vermeiden (naive vs. aware TypeError)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class TicketStatus(enum.Enum):
@@ -39,7 +45,7 @@ team_memberships = db.Table(
 )
 
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ad_username = db.Column(db.String(255), unique=True, nullable=True)
     anzeigename = db.Column(db.String(255), nullable=False)
@@ -56,6 +62,17 @@ class User(db.Model):
     teams = db.relationship(
         "Team", secondary=team_memberships, back_populates="mitglieder"
     )
+
+    @property
+    def is_active(self):
+        return self.aktiv
+
+    @property
+    def ist_agent(self):
+        return len(self.teams) > 0
+
+    def ist_agent_von(self, team_id):
+        return any(t.id == team_id for t in self.teams)
 
     def __repr__(self):
         return f"<User {self.anzeigename!r}>"
@@ -204,6 +221,7 @@ class Settings(db.Model):
     ldap_bind_dn = db.Column(db.String(255), nullable=True)
     smtp_host = db.Column(db.String(255), nullable=True)
     smtp_port = db.Column(db.Integer, nullable=True)
+    smtp_username = db.Column(db.String(255), nullable=True)
     smtp_from = db.Column(db.String(255), nullable=True)
     anhang_max_groesse_mb = db.Column(db.Integer, nullable=False, default=5)
     alte_tickets_tage = db.Column(db.Integer, nullable=False, default=7)
@@ -214,7 +232,10 @@ class Settings(db.Model):
         if settings is None:
             settings = cls(id=1)
             db.session.add(settings)
-            db.session.commit()
+            # flush() statt commit(): darf keine fremde, noch offene
+            # Transaktion des Aufrufers committen (z. B. ein bereits
+            # geflushtes, aber noch nicht bestätigtes Ticket).
+            db.session.flush()
         return settings
 
     def __repr__(self):
