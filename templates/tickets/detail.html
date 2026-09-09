@@ -11,7 +11,7 @@
         </tr>
         <tr>
             <th>Priorität</th><td>{{ ticket.prioritaet.value }}</td>
-            <th>Status</th><td>{{ ticket.status.value }}</td>
+            <th>Status</th><td><span class="status-badge status-{{ ticket.status.value }}">{{ ticket.status.value }}</span></td>
         </tr>
         <tr>
             <th>Ersteller</th><td>{{ ticket.ersteller.anzeigename }}</td>
