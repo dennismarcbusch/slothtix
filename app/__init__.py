@@ -4,8 +4,37 @@ from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.cli import bootstrap_admin, register_cli
-from app.config import Config
+from app.config import UNSICHERE_SECRET_KEYS, Config
 from app.extensions import csrf, db, migrate
+from app.security import registriere_security_header
+
+
+def _pruefe_secret_key(app):
+    """Verhindert den Start mit fehlendem oder allgemein bekanntem
+    SECRET_KEY.
+
+    Ein Fallback-Default wäre hier gefährlich bequem: Die App liefe
+    unauffällig weiter, obwohl jeder mit Kenntnis des Schlüssels ein
+    gültiges Session-Cookie (z. B. für die Admin-ID) signieren könnte.
+    Im Debug-/Testbetrieb ist ein fester Entwicklungsschlüssel dagegen
+    unkritisch und praktisch, deshalb wird dort nur gewarnt."""
+    key = app.config.get("SECRET_KEY")
+    if key and key not in UNSICHERE_SECRET_KEYS:
+        return
+
+    if app.debug or app.testing:
+        app.config["SECRET_KEY"] = key or "dev-secret-key-change-me"
+        app.logger.warning(
+            "Es wird ein unsicherer Entwicklungs-SECRET_KEY verwendet - "
+            "nur im Debug-/Testbetrieb zulässig."
+        )
+        return
+
+    raise RuntimeError(
+        "SECRET_KEY ist nicht oder nur mit einem Platzhalterwert gesetzt. "
+        "Einen zufälligen Wert erzeugen (z. B. 'openssl rand -hex 32') und "
+        "in der .env unter SECRET_KEY eintragen."
+    )
 
 
 def create_app(config_class=Config):
@@ -16,6 +45,7 @@ def create_app(config_class=Config):
         instance_relative_config=True,
     )
     app.config.from_object(config_class)
+    _pruefe_secret_key(app)
     os.makedirs(app.instance_path, exist_ok=True)
 
     # Vertraut X-Forwarded-For/-Proto/-Host von genau einem vorgeschalteten
@@ -29,6 +59,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    registriere_security_header(app)
     register_cli(app)
 
     from app import models  # noqa: F401  (Modelle für Migrationen registrieren)

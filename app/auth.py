@@ -1,4 +1,5 @@
 import functools
+from urllib.parse import urlparse
 
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import (
@@ -13,6 +14,7 @@ from werkzeug.security import check_password_hash
 from wtforms import PasswordField, StringField
 from wtforms.validators import DataRequired
 
+from app import login_throttle
 from app.extensions import db
 from app.ldap_service import LdapAuthError
 from app.ldap_service import authenticate as ldap_authenticate
@@ -64,6 +66,25 @@ def sync_user_from_ldap(username, ldap_user, settings):
     return user
 
 
+def _ist_sicheres_ziel(ziel):
+    """Prüft, ob `ziel` ein anwendungsinterner Pfad ist.
+
+    Der ?next=-Parameter kommt von Flask-Login (Weiterleitung auf die
+    ursprünglich angeforderte Seite) und ist damit vom Aufrufer frei
+    wählbar. Ohne diese Prüfung wäre ein Link auf die echte SlothTix-
+    Domain nach erfolgreichem Login auf eine beliebige fremde Seite
+    umleitbar (Open Redirect -> Phishing).
+
+    Abgelehnt wird deshalb alles, was nicht eindeutig ein relativer Pfad
+    ist: absolute URLs (http://evil.example), protokollrelative URLs
+    (//evil.example) und Backslash-Varianten, die manche Browser wie
+    Schrägstriche behandeln."""
+    if not ziel or not ziel.startswith("/") or ziel.startswith(("//", "/\\")):
+        return False
+    zerlegt = urlparse(ziel)
+    return not zerlegt.scheme and not zerlegt.netloc
+
+
 def _authenticate_local_admin(username, password):
     """Lokaler Admin-Account: einziger User mit ad_username=NULL, meldet
     sich mit Passwort statt LDAP-Bind an (siehe REQUIREMENTS.md 3.1)."""
@@ -84,6 +105,18 @@ def login():
     if form.validate_on_submit():
         username = form.username.data.strip()
         password = form.password.data
+        ip = request.remote_addr
+
+        if login_throttle.ist_gesperrt(username, ip):
+            current_app.logger.warning(
+                "Login für %r von %s wegen zu vieler Fehlversuche abgewiesen.", username, ip
+            )
+            flash(
+                "Zu viele fehlgeschlagene Anmeldeversuche. Bitte in einigen "
+                "Minuten erneut versuchen.",
+                "error",
+            )
+            return render_template("login.html", form=form), 429
 
         user = _authenticate_local_admin(username, password)
 
@@ -97,10 +130,16 @@ def login():
                     password,
                 )
             except LdapAuthError as exc:
-                current_app.logger.info("Login fehlgeschlagen für %r: %s", username, exc)
+                login_throttle.merke_fehlversuch(username, ip)
+                current_app.logger.info(
+                    "Login fehlgeschlagen für %r von %s: %s", username, ip, exc
+                )
                 flash("Benutzername oder Passwort falsch.", "error")
                 return render_template("login.html", form=form)
 
+            # Kein Fehlversuch: Die Zugangsdaten waren korrekt, es fehlt
+            # nur die Gruppenmitgliedschaft. Das ist kein Rateversuch und
+            # darf das Konto deshalb nicht in die Sperre laufen lassen.
             user = sync_user_from_ldap(username, ldap_user, settings)
             if user is None:
                 flash(
@@ -114,10 +153,13 @@ def login():
             flash("Dieses Konto ist deaktiviert.", "error")
             return render_template("login.html", form=form)
 
+        login_throttle.loesche_fehlversuche(username)
         user.letzter_login_am = utcnow()
         db.session.commit()
         login_user(user)
         next_url = request.args.get("next")
+        if not _ist_sicheres_ziel(next_url):
+            next_url = None
         return redirect(next_url or url_for("main.index"))
 
     return render_template("login.html", form=form)

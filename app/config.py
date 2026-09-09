@@ -5,8 +5,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Werte, die zwar "gesetzt" sind, aber aus der Beispielkonfiguration bzw.
+# einem alten Default stammen und deshalb als öffentlich bekannt gelten
+# müssen. Mit einem bekannten SECRET_KEY lässt sich ein Session-Cookie für
+# eine beliebige Benutzer-ID (inkl. Admin) selbst signieren - der Login wäre
+# damit vollständig umgehbar.
+UNSICHERE_SECRET_KEYS = {"dev-secret-key-change-me", "change-me", "changeme"}
+
+
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
+    SECRET_KEY = os.environ.get("SECRET_KEY")
     # Relative sqlite:/// URIs werden von Flask-SQLAlchemy automatisch
     # relativ zum instance/-Ordner der App aufgelöst.
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///slothtix.db")
@@ -30,6 +38,16 @@ class Config:
     LDAP_CA_CERT_PATH = os.environ.get("LDAP_CA_CERT_PATH")
     SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
     SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+    # Optionaler Pfad zu einer CA-Zertifikatsdatei (PEM) für die
+    # STARTTLS-Prüfung des Mailservers - analog zu LDAP_CA_CERT_PATH, z. B.
+    # wenn der Mailserver ein Zertifikat der schuleigenen CA nutzt. Ohne
+    # Angabe werden die System-CAs verwendet.
+    SMTP_CA_CERT_PATH = os.environ.get("SMTP_CA_CERT_PATH")
+    # Notausgang für Mailserver mit selbstsigniertem Zertifikat, das sich
+    # nicht über eine CA-Datei einbinden lässt. Schaltet die Prüfung
+    # vollständig ab und macht die Verbindung angreifbar - nur bewusst
+    # setzen.
+    SMTP_TLS_INSECURE = os.environ.get("SMTP_TLS_INSECURE", "false").lower() == "true"
 
     # Hinter einem TLS-terminierenden Reverse-Proxy (z. B. Caddy) setzen:
     # Session-Cookie wird nur noch über HTTPS übertragen, und url_for(...,

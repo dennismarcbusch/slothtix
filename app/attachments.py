@@ -1,4 +1,3 @@
-import mimetypes
 import os
 import uuid
 
@@ -7,16 +6,58 @@ from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import Attachment, Settings
 
-ERLAUBTE_MIME_TYPES = {
+# Erlaubte Dateiendungen und der Content-Type, unter dem sie später
+# ausgeliefert werden. Bewusst eine feste Zuordnung statt
+# mimetypes.guess_type() mit Rückfall auf den Content-Type des Clients:
+# Letzterer ist frei wählbar, und guess_type() liefert bei unbekannter
+# Endung None - eine Datei "nutzlast.blah" wäre damit allein aufgrund
+# eines mitgeschickten "image/png" durch die Prüfung gerutscht.
+ERLAUBTE_ENDUNGEN = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".pdf": "application/pdf",
+}
+
+# Signatur am Dateianfang je Typ. Die Endung sagt nur, was der Uploader
+# behauptet - erst der Abgleich mit dem tatsächlichen Inhalt verhindert,
+# dass beliebige Daten unter einem harmlosen Namen abgelegt und später
+# unter einem Bild-Content-Type ausgeliefert werden.
+MAGISCHE_BYTES = {
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "image/jpeg": (b"\xff\xd8\xff",),
+    "image/gif": (b"GIF87a", b"GIF89a"),
+    "application/pdf": (b"%PDF-",),
+}
+
+# Typen, die im Browser gefahrlos direkt angezeigt werden können. Alles
+# übrige (aktuell: PDF) wird beim Abruf zum Download gezwungen, statt es
+# im Sicherheitskontext der Anwendung zu rendern - siehe
+# tickets.download_attachment.
+ANZEIGBARE_MIME_TYPES = {
     "image/png",
     "image/jpeg",
     "image/gif",
-    "application/pdf",
 }
 
 
 class AttachmentError(Exception):
     """Datei überschreitet das Größenlimit oder hat einen nicht erlaubten Typ."""
+
+
+def _sicherer_dateiname(original, endung):
+    """Baut den Namen, unter dem die Datei gespeichert und angezeigt wird.
+
+    secure_filename() kann die Endung mit verschlucken - bei einem rein
+    nicht-lateinischen Namen bleibt von "<...>.png" nur "png" übrig. Der
+    Stamm wird deshalb aus dem bereinigten Namen genommen, die (bereits
+    geprüfte) Endung aber wieder fest angehängt, damit gespeicherter Name
+    und ausgelieferter Content-Type garantiert zusammenpassen."""
+    stamm, bereinigte_endung = os.path.splitext(secure_filename(original))
+    if not bereinigte_endung:
+        stamm = "datei"
+    return f"{stamm}{endung}"
 
 
 def _uploads_dir(app, ticket_id):
@@ -29,8 +70,10 @@ def save_attachments(app, files, uploaded_by, ticket=None, comment=None):
     """Speichert hochgeladene Dateien (werkzeug FileStorage-Objekte) als
     Attachment-Zeilen, verknüpft mit genau einem Ticket ODER Kommentar.
     Dateien liegen außerhalb des Web-Roots unter instance/uploads/.
-    Wirft AttachmentError bei Größen-/Typverstoß (nichts wird gespeichert,
-    weder Datei noch DB-Zeile)."""
+    Wirft AttachmentError, wenn eine Datei zu groß ist, eine unerlaubte
+    Endung hat oder ihr Inhalt nicht zur Endung passt. Geprüft wird alles
+    vorab: Schlägt eine Datei fehl, wird keine einzige gespeichert -
+    weder auf der Platte noch als DB-Zeile."""
     if (ticket is None) == (comment is None):
         raise ValueError("Genau eines von ticket/comment muss gesetzt sein.")
 
@@ -43,16 +86,15 @@ def save_attachments(app, files, uploaded_by, ticket=None, comment=None):
         if not file or not file.filename:
             continue
 
-        # Dateiendung hat Vorrang vor dem client-gelieferten Content-Type:
-        # Letzterer wird vom Client selbst gesetzt und ist daher trivial
-        # fälschbar (z. B. ein Skript mit vorgetäuschtem "image/png").
-        mime_type = (
-            mimetypes.guess_type(file.filename)[0]
-            or file.mimetype
-            or "application/octet-stream"
-        )
-        if mime_type not in ERLAUBTE_MIME_TYPES:
-            raise AttachmentError(f"Dateityp '{mime_type}' ist nicht erlaubt.")
+        # Der vom Client mitgeschickte Content-Type wird bewusst gar
+        # nicht mehr betrachtet - er ist frei wählbar und damit wertlos.
+        endung = os.path.splitext(file.filename)[1].lower()
+        mime_type = ERLAUBTE_ENDUNGEN.get(endung)
+        if mime_type is None:
+            raise AttachmentError(
+                f"Dateityp '{endung or file.filename}' ist nicht erlaubt. "
+                f"Erlaubt sind: {', '.join(sorted(ERLAUBTE_ENDUNGEN))}."
+            )
 
         data = file.read()
         if len(data) > max_bytes:
@@ -61,8 +103,13 @@ def save_attachments(app, files, uploaded_by, ticket=None, comment=None):
                 f"{settings.anhang_max_groesse_mb} MB."
             )
 
-        filename = secure_filename(file.filename) or "datei"
-        to_write.append((filename, mime_type, data))
+        if not data.startswith(MAGISCHE_BYTES[mime_type]):
+            raise AttachmentError(
+                f"Der Inhalt von '{file.filename}' passt nicht zur Dateiendung "
+                f"'{endung}'."
+            )
+
+        to_write.append((_sicherer_dateiname(file.filename, endung), mime_type, data))
 
     saved = []
     directory = _uploads_dir(app, ticket_id)

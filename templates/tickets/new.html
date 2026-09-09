@@ -39,8 +39,8 @@
     <button type="submit">Ticket erstellen</button>
 </form>
 
-<script>
-    const categoryData = {{ categories_by_team_json|safe }};
+<script nonce="{{ csp_nonce() }}">
+    const categoryData = {{ kategorien_fuer_js|tojson }};
     const teamSelect = document.querySelector('select[name="team_id"]');
     const categorySelect = document.getElementById("category-select");
 

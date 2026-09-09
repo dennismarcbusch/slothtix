@@ -209,6 +209,25 @@ class TicketHistory(db.Model):
         return f"<TicketHistory {self.aktion.value} auf Ticket {self.ticket_id}>"
 
 
+class LoginAttempt(db.Model):
+    """Ein fehlgeschlagener Anmeldeversuch, gezählt je Benutzername bzw.
+    je Quell-IP (siehe app/login_throttle.py).
+
+    Bewusst in der Datenbank statt im Prozessspeicher: Die App läuft mit
+    mehreren Gunicorn-Workern, ein prozesslokaler Zähler würde die Grenze
+    faktisch mit der Worker-Anzahl multiplizieren und bei jedem Neustart
+    verschwinden."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    schluessel = db.Column(db.String(255), nullable=False, index=True)
+    zeitstempel = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=utcnow, index=True
+    )
+
+    def __repr__(self):
+        return f"<LoginAttempt {self.schluessel!r}>"
+
+
 class Settings(db.Model):
     """Singleton-Zeile (id=1) für admin-konfigurierbare, nicht-geheime
     Einstellungen. Geheimnisse (LDAP-Bind-Passwort, SMTP-Passwort) werden

@@ -150,8 +150,8 @@
 {% endif %}
 
 {% if kann_verwalten %}
-<script>
-    const teamCategoryData = {{ kategorien_by_team_json|safe }};
+<script nonce="{{ csp_nonce() }}">
+    const teamCategoryData = {{ kategorien_fuer_js|tojson }};
     const teamChangeSelect = document.getElementById("team-change-select");
     const categoryChangeSelect = document.getElementById("team-change-category");
     teamChangeSelect.addEventListener("change", function () {

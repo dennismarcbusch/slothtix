@@ -35,12 +35,14 @@ Danach `.env` bearbeiten:
 
 | Variable | Bedeutung |
 |---|---|
-| `SECRET_KEY` | Zufälliger, langer String (z. B. `openssl rand -hex 32`) |
+| `SECRET_KEY` | **Pflichtfeld.** Zufälliger, langer String (z. B. `openssl rand -hex 32`). Ohne gesetzten Wert – oder mit einem Platzhalter wie `change-me` – verweigert die App den Start. |
 | `DATABASE_URL` | In der Regel unverändert lassen (`sqlite:///slothtix.db`) |
 | `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Zugangsdaten für den initialen, lokalen Admin-Account (nur beim allerersten Start relevant) |
 | `LDAP_BIND_PASSWORD` | Passwort des LDAP-Service-Accounts (siehe unten) |
 | `SMTP_PASSWORD` | Passwort des SMTP-Versand-Accounts |
 | `SMTP_USE_TLS` | `true`, falls der Mailserver STARTTLS auf Port 587 anbietet (Standardfall) |
+| `SMTP_CA_CERT_PATH` | Optional: CA-Zertifikat, falls der Mailserver ein Zertifikat der eigenen CA nutzt. Leer = System-CAs |
+| `SMTP_TLS_INSECURE` | Notausgang für selbstsignierte Mailserver-Zertifikate – schaltet die Prüfung ab, nur bewusst setzen |
 | `LDAP_CA_CERT_PATH` | Pfad zur CA-Zertifikatsdatei für die LDAPS-Prüfung (siehe unten) |
 | `FORCE_HTTPS` | `true`, sobald Caddy als Reverse-Proxy davor läuft (siehe Abschnitt 5) – lokal ohne Proxy auf `false` lassen |
 
@@ -127,7 +129,12 @@ Unter **Einstellungen** (als Admin):
   Mitglieder Tickets erstellen dürfen
 - **SMTP-Server/-Port/-Benutzername/-Absenderadresse**: Zugangsdaten eures
   Mailservers (Port 587 mit STARTTLS wird unterstützt, Port 465 mit
-  direktem TLS aktuell nicht)
+  direktem TLS aktuell nicht). Das Serverzertifikat wird geprüft – bei
+  einer eigenen CA `SMTP_CA_CERT_PATH` in der `.env` setzen.
+
+**Anhänge:** Erlaubt sind `.png`, `.jpg`/`.jpeg`, `.gif` und `.pdf`. Geprüft
+werden Endung *und* tatsächlicher Dateiinhalt; eine umbenannte Datei wird
+abgelehnt.
 
 Zum Testen der LDAP-Zugangsdaten unabhängig von SlothTix eignet sich
 `ldapsearch` (siehe Fehlerdiagnose unten).
@@ -163,6 +170,15 @@ stimmt:** Die tatsächliche Ursache steht in den Logs
 Häufige Ursachen: falscher LDAP-Port (siehe Schritt 8), `.env` nach
 Änderung nicht neu geladen (`docker compose up -d --force-recreate`
 nötig), falsche Bind-DN.
+
+**„Zu viele fehlgeschlagene Anmeldeversuche":** Nach 5 Fehlversuchen je
+Benutzername (bzw. 50 je IP-Adresse) wird der Login für 15 Minuten
+gesperrt – Schutz gegen das Durchprobieren von Domänen-Passwörtern. Die
+Sperre läuft von selbst ab; ein erfolgreicher Login setzt den Zähler des
+Benutzernamens sofort zurück. Zum manuellen Aufheben:
+```bash
+docker compose exec slothtix python -c "from app import create_app; from app.extensions import db; from app.models import LoginAttempt; app=create_app(); ctx=app.app_context(); ctx.push(); LoginAttempt.query.delete(); db.session.commit()"
+```
 
 **LDAP-Zugangsdaten isoliert testen:**
 ```bash

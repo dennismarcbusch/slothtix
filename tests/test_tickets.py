@@ -1,7 +1,17 @@
 import io
+import re
 
 from app.extensions import db
-from app.models import Comment, Settings, Sichtbarkeit, Team, Ticket, TicketPrioritaet, TicketStatus
+from app.models import (
+    Attachment,
+    Comment,
+    Settings,
+    Sichtbarkeit,
+    Team,
+    Ticket,
+    TicketPrioritaet,
+    TicketStatus,
+)
 
 from tests.conftest import login_as
 
@@ -320,8 +330,6 @@ def test_internal_comment_attachment_hidden_from_creator_but_visible_to_agent(
     )
 
     with app.app_context():
-        from app.models import Attachment
-
         attachment_id = Attachment.query.filter_by(dateiname="intern.png").first().id
 
     login_as(client, ersteller_id)
@@ -586,3 +594,238 @@ def test_only_mine_toggle_not_shown_for_pure_user(app, client, make_team, make_u
         response = client.get("/tickets/").get_data(as_text=True)
 
         assert "Nur mir zugewiesene anzeigen" not in response
+
+
+def test_kategoriename_kann_nicht_aus_dem_script_block_ausbrechen(
+    app, client, admin_user, make_team
+):
+    """Die Team->Kategorien-Struktur landet in einem <script>-Block. Ein
+    Kategoriename mit '</script>' darf ihn nicht beenden können."""
+    with app.app_context():
+        make_team(name="IT", kategorien=("</script><img src=x onerror=alert(1)>",))
+
+    login_as(client, admin_user)
+    response = client.get("/tickets/neu")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "</script><img" not in html
+    assert "\u003c/script\u003e" in html
+
+
+def test_sortier_links_ignorieren_fremde_query_parameter(app, client, admin_user, make_team):
+    """?_method=DELETE landete früher per ** in url_for() und riss die
+    gesamte Übersicht mit einem BuildError (HTTP 500) ab."""
+    with app.app_context():
+        make_team()
+
+    login_as(client, admin_user)
+    for parameter in ("_method=DELETE", "_scheme=javascript", "_external=1", "beliebig=x"):
+        response = client.get(f"/tickets/?{parameter}")
+        assert response.status_code == 200, parameter
+
+
+def test_sortier_links_behalten_die_aktiven_filter(app, client, admin_user, make_team):
+    with app.app_context():
+        team = make_team()
+        team_id = team.id
+
+    login_as(client, admin_user)
+    response = client.get(f"/tickets/?q=drucker&team={team_id}&status=offen")
+    html = response.get_data(as_text=True)
+
+    assert "q=drucker" in html
+    assert f"team={team_id}" in html
+    assert "status=offen" in html
+
+
+def test_sicherheitsheader_auf_jeder_antwort(client):
+    response = client.get("/login")
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "same-origin"
+    csp = response.headers["Content-Security-Policy"]
+    assert "frame-ancestors 'none'" in csp
+    assert "object-src 'none'" in csp
+    assert "'unsafe-inline'" not in csp
+
+
+def test_inline_skript_traegt_das_nonce_aus_der_csp(app, client, admin_user, make_team):
+    with app.app_context():
+        make_team()
+
+    login_as(client, admin_user)
+    response = client.get("/tickets/neu")
+    html = response.get_data(as_text=True)
+
+    nonce = re.search(r'<script nonce="([^"]+)">', html).group(1)
+    assert f"'nonce-{nonce}'" in response.headers["Content-Security-Policy"]
+
+
+def test_bild_anhang_wird_inline_mit_geprueftem_typ_ausgeliefert(
+    app, client, admin_user, make_team
+):
+    with app.app_context():
+        ticket = _ticket_mit_anhang(make_team, admin_user, "screenshot.png", "image/png")
+        anhang_id = ticket.anhaenge[0].id
+
+    login_as(client, admin_user)
+    response = client.get(f"/tickets/anhaenge/{anhang_id}")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "image/png"
+    assert response.headers["Content-Disposition"].startswith("inline")
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+
+
+def test_pdf_anhang_wird_zum_download_gezwungen(app, client, admin_user, make_team):
+    with app.app_context():
+        ticket = _ticket_mit_anhang(make_team, admin_user, "handbuch.pdf", "application/pdf")
+        anhang_id = ticket.anhaenge[0].id
+
+    login_as(client, admin_user)
+    response = client.get(f"/tickets/anhaenge/{anhang_id}")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Disposition"].startswith("attachment")
+
+
+def _ticket_mit_anhang(make_team, uploader, dateiname, mime_type):
+    """Legt ein Ticket mit genau einem Anhang an (Datei auf der Platte
+    inklusive) und gibt das Ticket zurück."""
+    import os
+
+    from flask import current_app
+
+    team = make_team()
+    ticket = Ticket(
+        titel="Mit Anhang",
+        beschreibung="…",
+        team_id=team.id,
+        category_id=team.kategorien[0].id,
+        ersteller_id=uploader.id,
+        prioritaet=TicketPrioritaet.MITTEL,
+    )
+    db.session.add(ticket)
+    db.session.flush()
+
+    verzeichnis = os.path.join(current_app.instance_path, "uploads", str(ticket.id))
+    os.makedirs(verzeichnis, exist_ok=True)
+    pfad = os.path.join(verzeichnis, f"abc123_{dateiname}")
+    with open(pfad, "wb") as f:
+        f.write(b"inhalt")
+
+    db.session.add(
+        Attachment(
+            ticket_id=ticket.id,
+            dateiname=dateiname,
+            pfad=os.path.relpath(pfad, current_app.instance_path),
+            groesse_bytes=6,
+            mime_type=mime_type,
+            hochgeladen_von_id=uploader.id,
+        )
+    )
+    db.session.commit()
+    return ticket
+
+
+def _ticket_anlegen_mit_datei(client, team_id, kategorie_id, dateiname, inhalt, content_type=None):
+    datei = (io.BytesIO(inhalt), dateiname) if content_type is None else (
+        io.BytesIO(inhalt),
+        dateiname,
+        content_type,
+    )
+    return client.post(
+        "/tickets/neu",
+        data={
+            "titel": "Mit Anhang",
+            "beschreibung": "Text",
+            "team_id": str(team_id),
+            "category_id": str(kategorie_id),
+            "prioritaet": "mittel",
+            "anhaenge": datei,
+        },
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+
+def test_unbekannte_endung_wird_trotz_vorgetaeuschtem_content_type_abgelehnt(
+    app, client, admin_user, make_team
+):
+    """mimetypes.guess_type() lieferte für unbekannte Endungen None, worauf
+    der frei wählbare Content-Type des Clients den Ausschlag gab."""
+    with app.app_context():
+        team = make_team()
+        team_id, kategorie_id = team.id, team.kategorien[0].id
+
+    login_as(client, admin_user)
+    response = _ticket_anlegen_mit_datei(
+        client, team_id, kategorie_id, "nutzlast.blah", b"\x89PNG\r\n\x1a\nirgendwas", "image/png"
+    )
+
+    assert "nicht erlaubt" in response.get_data(as_text=True)
+    with app.app_context():
+        assert Attachment.query.count() == 0
+
+
+def test_inhalt_muss_zur_endung_passen(app, client, admin_user, make_team):
+    """Eine in .png umbenannte Datei darf nicht als Bild durchgehen -
+    sonst läge beliebiger Inhalt unter einem Bild-Content-Type."""
+    with app.app_context():
+        team = make_team()
+        team_id, kategorie_id = team.id, team.kategorien[0].id
+
+    login_as(client, admin_user)
+    response = _ticket_anlegen_mit_datei(
+        client, team_id, kategorie_id, "getarnt.png", b"<html><script>alert(1)</script>"
+    )
+
+    assert "passt nicht zur Dateiendung" in response.get_data(as_text=True)
+    with app.app_context():
+        assert Attachment.query.count() == 0
+
+
+def test_alle_erlaubten_typen_werden_mit_korrektem_mime_gespeichert(
+    app, client, admin_user, make_team
+):
+    from app.attachments import ERLAUBTE_ENDUNGEN
+
+    beispiele = {
+        "bild.png": b"\x89PNG\r\n\x1a\n" + b"0" * 20,
+        "foto.jpg": b"\xff\xd8\xff" + b"0" * 20,
+        "anim.gif": b"GIF89a" + b"0" * 20,
+        "doku.pdf": b"%PDF-1.7" + b"0" * 20,
+    }
+    with app.app_context():
+        team = make_team()
+        team_id, kategorie_id = team.id, team.kategorien[0].id
+
+    login_as(client, admin_user)
+    for dateiname, inhalt in beispiele.items():
+        _ticket_anlegen_mit_datei(client, team_id, kategorie_id, dateiname, inhalt)
+        with app.app_context():
+            anhang = Attachment.query.filter_by(dateiname=dateiname).first()
+            assert anhang is not None, dateiname
+            endung = "." + dateiname.rsplit(".", 1)[1]
+            assert anhang.mime_type == ERLAUBTE_ENDUNGEN[endung]
+
+
+def test_dateiname_ohne_lateinische_zeichen_behaelt_die_endung(app, client, admin_user, make_team):
+    """secure_filename() verschluckt bei rein nicht-lateinischen Namen die
+    Endung - gespeicherter Name und Content-Type müssen trotzdem passen."""
+    with app.app_context():
+        team = make_team()
+        team_id, kategorie_id = team.id, team.kategorien[0].id
+
+    login_as(client, admin_user)
+    _ticket_anlegen_mit_datei(
+        client, team_id, kategorie_id, "日本語.png", b"\x89PNG\r\n\x1a\n" + b"0" * 20
+    )
+
+    with app.app_context():
+        anhang = Attachment.query.first()
+        assert anhang is not None
+        assert anhang.dateiname.endswith(".png")
+        assert anhang.mime_type == "image/png"

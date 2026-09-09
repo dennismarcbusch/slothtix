@@ -1,4 +1,3 @@
-import json
 import os
 from datetime import timedelta
 
@@ -17,7 +16,7 @@ from flask import (
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
-from app.attachments import AttachmentError, save_attachments
+from app.attachments import ANZEIGBARE_MIME_TYPES, AttachmentError, save_attachments
 from app.extensions import db
 from app.forms import CommentForm, TicketForm
 from app.models import (
@@ -72,11 +71,19 @@ def _group_categories_by_team(categories):
     return grouped
 
 
-def _categories_json(categories):
+def _kategorien_fuer_js(categories):
+    """Baut die Team->Kategorien-Struktur für das Inline-Skript der
+    Formulare (dynamisches Nachladen der Kategorie-Auswahl).
+
+    Bewusst nur einfache Datentypen: Die Struktur wird im Template mit
+    dem |tojson-Filter serialisiert, der - anders als json.dumps - auch
+    '<', '>' und '&' escaped. Ohne das könnte ein Kategoriename wie
+    "</script><img src=x onerror=...>" aus dem <script>-Block ausbrechen
+    (gespeichertes XSS)."""
     grouped = _group_categories_by_team(categories)
-    return json.dumps(
-        {str(team_id): [{"id": c.id, "name": c.name} for c in cats] for team_id, cats in grouped.items()}
-    )
+    return {
+        str(team_id): [{"id": c.id, "name": c.name} for c in cats] for team_id, cats in grouped.items()
+    }
 
 
 def _log_history(ticket, aktion, alter_wert, neuer_wert):
@@ -103,6 +110,14 @@ _STATUS_RANG = {
 # (Team/Kategorie/Ersteller/Zugewiesen sind bereits eager geladen) - bei
 # der erwarteten Ticket-Menge (wenige gleichzeitige Nutzer) unproblematisch
 # und deutlich einfacher als drei zusätzliche Joins/Aliase für die Sortierung.
+# Parameter, die beim Wechsel der Sortierung erhalten bleiben. Die Liste
+# ist bewusst eine Allowlist: request.args landete hier früher per ** direkt
+# in url_for(), das Schlüssel mit führendem Unterstrich als Steuerparameter
+# auswertet (_method, _scheme, _external, _anchor). Ein präpariertes
+# "?_method=DELETE" erzeugte damit einen BuildError - also HTTP 500 auf der
+# gesamten Ticket-Übersicht, für jeden, der dem Link folgt.
+UEBERNOMMENE_FILTER = ("q", "team", "kategorie", "ersteller", "status", "prioritaet")
+
 SORTIER_SPALTEN = {
     "id": lambda t: t.id,
     "titel": lambda t: t.titel.lower(),
@@ -200,7 +215,7 @@ def list_view():
     tickets.sort(key=SORTIER_SPALTEN[sort_spalte], reverse=(sort_richtung == "desc"))
 
     def sort_url(spalte):
-        args = request.args.to_dict(flat=True)
+        args = {k: request.args[k] for k in UEBERNOMMENE_FILTER if k in request.args}
         args["sort"] = spalte
         if spalte == sort_spalte:
             args["dir"] = "asc" if sort_richtung == "desc" else "desc"
@@ -261,7 +276,7 @@ def new():
         (c.id, f"{c.team.name} – {c.name}") for c in categories
     ]
 
-    categories_by_team_json = _categories_json(categories)
+    kategorien_fuer_js = _kategorien_fuer_js(categories)
 
     if form.validate_on_submit():
         team = db.session.get(Team, form.team_id.data)
@@ -291,7 +306,7 @@ def new():
                     "tickets/new.html",
                     form=form,
                     categories=categories,
-                    categories_by_team_json=categories_by_team_json,
+                    kategorien_fuer_js=kategorien_fuer_js,
                 )
 
             db.session.commit()
@@ -305,7 +320,7 @@ def new():
         "tickets/new.html",
         form=form,
         categories=categories,
-        categories_by_team_json=categories_by_team_json,
+        kategorien_fuer_js=kategorien_fuer_js,
     )
 
 
@@ -324,7 +339,7 @@ def detail(ticket_id):
     teams = Team.query.filter_by(aktiv=True).order_by(Team.name).all() if kann_verwalten else []
     aktive_kategorien = [c for t in teams for c in t.kategorien if c.aktiv]
     kategorien_by_team = _group_categories_by_team(aktive_kategorien)
-    kategorien_by_team_json = _categories_json(aktive_kategorien)
+    kategorien_fuer_js = _kategorien_fuer_js(aktive_kategorien)
 
     return render_template(
         "tickets/detail.html",
@@ -334,7 +349,7 @@ def detail(ticket_id):
         kann_verwalten=kann_verwalten,
         teams=teams,
         kategorien_by_team=kategorien_by_team,
-        kategorien_by_team_json=kategorien_by_team_json,
+        kategorien_fuer_js=kategorien_fuer_js,
         TicketStatus=TicketStatus,
         TicketPrioritaet=TicketPrioritaet,
         Sichtbarkeit=Sichtbarkeit,
@@ -501,8 +516,22 @@ def download_attachment(attachment_id):
         abort(403)
 
     full_path = os.path.join(current_app.instance_path, attachment.pfad)
+
+    # Der Content-Type kommt aus der beim Upload geprüften Allowlist und
+    # wird explizit gesetzt, statt ihn von send_from_directory aus dem
+    # Dateinamen raten zu lassen. Zusammen mit dem globalen
+    # X-Content-Type-Options: nosniff (siehe app/security.py) steht damit
+    # fest, wie der Browser die Datei behandelt.
+    #
+    # Bilder bleiben bewusst inline abrufbar - Screenshots sind der
+    # Hauptanwendungsfall und sollen sich per Klick ansehen lassen. Alles
+    # andere wird als Download ausgeliefert, damit es gar nicht erst im
+    # Dokumentkontext der Anwendung landet.
+    inline_anzeigen = attachment.mime_type in ANZEIGBARE_MIME_TYPES
     return send_from_directory(
         os.path.dirname(full_path),
         os.path.basename(full_path),
         download_name=attachment.dateiname,
+        mimetype=attachment.mime_type,
+        as_attachment=not inline_anzeigen,
     )

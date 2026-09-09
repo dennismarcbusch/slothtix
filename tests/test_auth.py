@@ -133,3 +133,96 @@ def test_login_via_ldap_wrong_credentials_shows_generic_error(app, client, monke
     )
 
     assert b"Benutzername oder Passwort falsch" in response.data
+
+
+def test_login_ignoriert_externes_next_ziel(client):
+    """Open-Redirect-Schutz: ?next= darf nur auf einen internen Pfad zeigen."""
+    response = client.post(
+        "/login?next=https://evil.example.com/pwned",
+        data={"username": "admin", "password": "adminpass"},
+    )
+    assert response.status_code == 302
+    assert "evil.example.com" not in response.headers["Location"]
+
+
+def test_login_ignoriert_protokollrelatives_next_ziel(client):
+    response = client.post(
+        "/login?next=//evil.example.com/pwned",
+        data={"username": "admin", "password": "adminpass"},
+    )
+    assert response.status_code == 302
+    assert "evil.example.com" not in response.headers["Location"]
+
+
+def test_login_folgt_internem_next_ziel(client):
+    response = client.post(
+        "/login?next=/tickets/neu", data={"username": "admin", "password": "adminpass"}
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/tickets/neu")
+
+
+def test_login_sperrt_nach_zu_vielen_fehlversuchen(client):
+    from app.login_throttle import MAX_VERSUCHE_PRO_BENUTZER
+
+    for _ in range(MAX_VERSUCHE_PRO_BENUTZER):
+        response = client.post("/login", data={"username": "admin", "password": "falsch"})
+        assert b"Benutzername oder Passwort falsch" in response.data
+
+    gesperrt = client.post("/login", data={"username": "admin", "password": "falsch"})
+    assert gesperrt.status_code == 429
+    assert "Zu viele fehlgeschlagene Anmeldeversuche" in gesperrt.get_data(as_text=True)
+
+    # Auch das richtige Passwort kommt während der Sperre nicht mehr durch.
+    trotz_richtigem_passwort = client.post(
+        "/login", data={"username": "admin", "password": "adminpass"}
+    )
+    assert trotz_richtigem_passwort.status_code == 429
+
+
+def test_login_sperre_ignoriert_gross_kleinschreibung(client):
+    from app.login_throttle import MAX_VERSUCHE_PRO_BENUTZER
+
+    for _ in range(MAX_VERSUCHE_PRO_BENUTZER):
+        client.post("/login", data={"username": "admin", "password": "falsch"})
+
+    response = client.post("/login", data={"username": "ADMIN", "password": "falsch"})
+    assert response.status_code == 429
+
+
+def test_erfolgreicher_login_setzt_fehlversuchszaehler_zurueck(app, client):
+    from app.login_throttle import MAX_VERSUCHE_PRO_BENUTZER
+    from app.models import LoginAttempt
+
+    for _ in range(MAX_VERSUCHE_PRO_BENUTZER - 1):
+        client.post("/login", data={"username": "admin", "password": "falsch"})
+
+    erfolg = client.post("/login", data={"username": "admin", "password": "adminpass"})
+    assert erfolg.status_code == 302
+
+    with app.app_context():
+        assert LoginAttempt.query.filter_by(schluessel="user:admin").count() == 0
+
+
+def test_fehlende_gruppenmitgliedschaft_zaehlt_nicht_als_fehlversuch(
+    app, client, make_team, monkeypatch
+):
+    """Korrekte Zugangsdaten ohne passende AD-Gruppe sind kein Rateversuch -
+    sonst sperrte sich ein berechtigter Nutzer durch bloßes Anmelden aus."""
+    from app.models import LoginAttempt
+
+    with app.app_context():
+        make_team(name="IT", ad_gruppe_agenten="grp-it-agenten")
+        settings = Settings.get_or_create()
+        settings.ad_gruppe_user = "grp-user"
+        db.session.commit()
+
+    def fake_authenticate(settings, bind_password, username, password, connection_factory=None):
+        return LdapUser(anzeigename="Ghost", email="ghost@example.local", gruppen=["andere"])
+
+    monkeypatch.setattr("app.auth.ldap_authenticate", fake_authenticate)
+
+    client.post("/login", data={"username": "ghost", "password": "richtig"})
+
+    with app.app_context():
+        assert LoginAttempt.query.count() == 0
