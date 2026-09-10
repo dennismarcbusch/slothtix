@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from app import create_app
@@ -22,6 +24,15 @@ def app(tmp_path):
         SERVER_NAME = "localhost"
 
     flask_app = create_app(TestConfig)
+
+    # Der instance_path zeigt sonst auf das echte instance/-Verzeichnis des
+    # Projekts: Tests, die Anhänge anlegen oder aufräumen (siehe
+    # tests/test_cli.py, tests/test_betrieb.py), würden dort echte Dateien
+    # schreiben und löschen. Die Datenbank liegt über
+    # SQLALCHEMY_DATABASE_URI bereits unter tmp_path, die Uploads folgen
+    # hier nach.
+    flask_app.instance_path = str(tmp_path / "instance")
+    os.makedirs(flask_app.instance_path, exist_ok=True)
 
     # Setup/Teardown brauchen einen App-Context, aber er darf während der
     # eigentlichen Testausführung NICHT ambient bleiben: der Testclient
