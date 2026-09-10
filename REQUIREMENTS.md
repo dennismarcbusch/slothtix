@@ -235,10 +235,16 @@ behalten werden:
    Flask-Babel).
 5. **Statistiken/Reporting** (z. B. Anzahl offener Tickets pro Team) ist nicht
    Teil des ersten Wurfs, könnte aber als spätere Erweiterung sinnvoll sein.
-6. **Tickets löschen** ist aktuell nirgends möglich (weder für User, Agenten
-   noch Admin) – einzige Möglichkeit, ein Ticket aus der Standardansicht
-   verschwinden zu lassen, ist der Status „Geschlossen". Bei Bedarf müsste
-   eine echte Löschfunktion (vermutlich nur für Admins) ergänzt werden.
+6. **Tickets löschen** ist in der Oberfläche weiterhin nirgends möglich
+   (weder für User, Agenten noch Admin) – einzige Möglichkeit, ein Ticket aus
+   der Standardansicht verschwinden zu lassen, ist der Status „Geschlossen".
+   Für das Aufräumen der Testdaten vor dem Produktivstart gibt es das
+   CLI-Kommando `flask tickets-purge` (siehe
+   [docs/SETUP.md](docs/SETUP.md), Abschnitt 11), das Tickets samt
+   Kommentaren, Historie und Anhängen entfernt; bewusst nur auf der
+   Kommandozeile und nicht als Klick in der Oberfläche. Eine echte
+   Löschfunktion für Admins im UI – auch als Grundlage für das
+   DSGVO-Löschkonzept aus Punkt 2 – müsste bei Bedarf noch ergänzt werden.
 
 ## 8. Zusammenfassung der Kernentscheidungen
 

@@ -173,6 +173,34 @@ auch bei laufendem Betrieb in sich stimmig ist. Sicherungen, die älter als 14
 Tage sind, werden automatisch entfernt; ein abweichender Wert lässt sich als
 dritter Parameter übergeben.
 
+## 11. Testdaten vor dem Produktivstart entfernen
+
+Nach der Testphase lassen sich die angesammelten Test-Tickets entfernen, ohne
+Teams, Kategorien, Nutzer oder Einstellungen anzufassen:
+
+```bash
+docker compose exec slothtix flask tickets-purge --alle
+```
+
+Der Aufruf ist zunächst ein **Probelauf** und zeigt nur an, was gelöscht würde.
+Erst mit `--ja` wird tatsächlich gelöscht:
+
+```bash
+docker compose exec slothtix flask tickets-purge --alle --ja --verwaiste-dateien
+```
+
+- `--vor JJJJ-MM-TT` löscht statt aller Tickets nur die vor diesem Datum (UTC)
+  erstellten – nützlich, wenn nur die alte Testphase weg soll.
+- `--verwaiste-dateien` entfernt zusätzlich Dateien unter `instance/uploads/`,
+  zu denen es keinen Anhang-Datensatz mehr gibt (Reste früherer Resets).
+
+Gelöscht werden mit jedem Ticket auch dessen Kommentare, Historie und Anhänge
+inklusive der Dateien auf der Platte. Das ist **nicht rückgängig zu machen** –
+vorher einmal `scripts/backup.sh` laufen lassen (siehe Abschnitt 10).
+
+Nebeneffekt, meist erwünscht: Sind alle Tickets gelöscht, beginnt die
+Ticket-Nummerierung wieder bei 1.
+
 ## Fehlerdiagnose
 
 **Login schlägt mit „Benutzername oder Passwort falsch" fehl, obwohl beides
