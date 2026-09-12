@@ -14,6 +14,8 @@ Falls die Anmeldung nicht klappt, obwohl die Zugangsdaten stimmen: Wende
 dich an die IT – möglicherweise ist dein Konto noch nicht für SlothTix
 freigeschaltet.
 
+![Anmeldeseite](images/user-anmeldung.png)
+
 ## Ein neues Ticket erstellen
 
 1. Oben auf **„Neues Ticket"** klicken.
@@ -38,6 +40,8 @@ freigeschaltet.
 Pflichtfelder sind mit einem roten `*` markiert. Fehlt eine Angabe, macht
 dich SlothTix direkt beim entsprechenden Feld darauf aufmerksam.
 
+![Formular für ein neues Ticket](images/user-neues-ticket.png)
+
 ## Den Status deiner Tickets verfolgen
 
 Unter **„Tickets"** siehst du eine Übersicht all deiner eigenen Tickets mit
@@ -50,6 +54,8 @@ aktuellem Status:
 
 Geschlossene Tickets sind standardmäßig ausgeblendet – über den Button
 **„Geschlossene einblenden"** lassen sie sich bei Bedarf wieder anzeigen.
+
+![Ticketübersicht](images/user-tickets-uebersicht.png)
 
 Ein Klick auf ein Ticket öffnet die Detailansicht mit allen Informationen,
 bisherigen Kommentaren und der Möglichkeit, selbst zu kommentieren.
@@ -64,6 +70,8 @@ zuständige Team.
 
 Manche Kommentare eines Teams sind als „intern" markiert – die siehst du
 nicht, da sie nur der teaminternen Abstimmung dienen.
+
+![Ticket-Detailansicht mit Kommentar](images/user-ticket-detail.png)
 
 ## Benachrichtigungen
 
