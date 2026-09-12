@@ -496,18 +496,24 @@ def change_team(ticket_id):
 
     if not neues_team or not neues_team.aktiv:
         flash("Ungültiges Team.", "error")
-    elif not _category_matches_team(neue_category, neues_team):
+        return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+    if not _category_matches_team(neue_category, neues_team):
         flash("Die Kategorie muss zum neuen Team passen.", "error")
-    else:
-        altes_team_name = ticket.team.name
-        ticket.team_id = neues_team.id
-        ticket.category_id = neue_category.id
-        ticket.zugewiesen_an_id = None
-        _log_history(ticket, HistorienAktion.TEAM_GEWECHSELT, altes_team_name, neues_team.name)
-        db.session.commit()
-        flash("Team geändert.", "success")
+        return redirect(url_for("tickets.detail", ticket_id=ticket.id))
 
-    return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+    altes_team_name = ticket.team.name
+    ticket.team_id = neues_team.id
+    ticket.category_id = neue_category.id
+    ticket.zugewiesen_an_id = None
+    _log_history(ticket, HistorienAktion.TEAM_GEWECHSELT, altes_team_name, neues_team.name)
+    db.session.commit()
+    flash("Team geändert.", "success")
+
+    # Nach dem Wechsel zur Übersicht statt zur Detailseite: Ist der
+    # ausführende Agent im neuen Team nicht Mitglied (und nicht Ersteller),
+    # kann er das Ticket laut _kann_ticket_sehen nicht mehr aufrufen - ein
+    # Redirect zur Detailseite würde dann in einem 403 enden.
+    return redirect(url_for("tickets.list_view"))
 
 
 @tickets_bp.route("/anhaenge/<int:attachment_id>")

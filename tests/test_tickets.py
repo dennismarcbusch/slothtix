@@ -550,6 +550,37 @@ def test_update_details_with_unchanged_values_flashes_no_changes(app, client, ma
         assert len(db.session.get(Ticket, ticket.id).historie) == 0
 
 
+def test_change_team_redirects_to_overview_not_detail(app, client, make_team, make_user):
+    # Verschiebt ein Ticket in ein Team, in dem der ausführende Agent kein
+    # Mitglied ist. Ein Redirect auf die Detailseite würde dort an
+    # _kann_ticket_sehen scheitern (403), da der Agent das Ticket im neuen
+    # Team nicht mehr sehen darf - deshalb muss auf die Übersicht
+    # umgeleitet werden.
+    with app.app_context():
+        team_a = make_team(name="IT", ad_gruppe_agenten="grp-it")
+        team_b = make_team(name="Hausmeister", ad_gruppe_agenten="grp-hm", kategorien=("Heizung",))
+        kategorie_b = team_b.kategorien[0]
+        ersteller = make_user(anzeigename="Ersteller", email="e@example.local", ad_username="ersteller")
+        agent = make_user(
+            anzeigename="Agent", email="agent@example.local", ad_username="agent", teams=[team_a]
+        )
+        ticket = _create_ticket(db, team_a, team_a.kategorien[0], ersteller)
+
+        login_as(client, agent)
+        response = client.post(
+            f"/tickets/{ticket.id}/team",
+            data={"team_id": str(team_b.id), "category_id": str(kategorie_b.id)},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/tickets/")
+
+        follow_up = client.get(response.headers["Location"])
+        assert follow_up.status_code == 200
+        assert db.session.get(Ticket, ticket.id).team_id == team_b.id
+
+
 def test_sort_by_titel_ascending_and_descending(app, client, admin_user, make_team):
     with app.app_context():
         team = make_team()
