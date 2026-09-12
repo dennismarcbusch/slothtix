@@ -396,38 +396,16 @@ def add_comment(ticket_id):
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
 
 
-@tickets_bp.route("/<int:ticket_id>/zuweisen", methods=["POST"])
+@tickets_bp.route("/<int:ticket_id>/aktualisieren", methods=["POST"])
 @login_required
-def assign(ticket_id):
-    ticket = db.get_or_404(Ticket, ticket_id)
-    if not _kann_ticket_verwalten(current_user, ticket):
-        abort(403)
+def update_details(ticket_id):
+    """Sammel-Endpunkt für Status, Priorität, Zuweisung und Kategorie.
 
-    assignee_id = request.form.get("zugewiesen_an_id", type=int)
-    alter_wert = ticket.zugewiesen_an.anzeigename if ticket.zugewiesen_an else "Niemand"
-
-    if assignee_id:
-        assignee = db.session.get(User, assignee_id)
-        if not assignee or not assignee.ist_agent_von(ticket.team_id):
-            flash("Ungültige Zuweisung.", "error")
-            return redirect(url_for("tickets.detail", ticket_id=ticket.id))
-        ticket.zugewiesen_an_id = assignee.id
-        neuer_wert = assignee.anzeigename
-    else:
-        ticket.zugewiesen_an_id = None
-        neuer_wert = "Niemand"
-
-    _log_history(ticket, HistorienAktion.ZUGEWIESEN, alter_wert, neuer_wert)
-    db.session.commit()
-    if ticket.zugewiesen_an_id:
-        notify_assigned(ticket)
-    flash("Zuweisung aktualisiert.", "success")
-    return redirect(url_for("tickets.detail", ticket_id=ticket.id))
-
-
-@tickets_bp.route("/<int:ticket_id>/status", methods=["POST"])
-@login_required
-def change_status(ticket_id):
+    Bewusst in einem Formular/Endpunkt zusammengefasst, damit Agenten nicht
+    für jede der vier Eigenschaften einzeln speichern müssen. Der Team-
+    Wechsel bleibt ein eigener Endpunkt (change_team), da er die Kategorie
+    auf eine andere Team-Zuordnung umstellt und die Zuweisung zurücksetzt -
+    eine deutlich größere Auswirkung als die übrigen Felder."""
     ticket = db.get_or_404(Ticket, ticket_id)
     if not _kann_ticket_verwalten(current_user, ticket):
         abort(403)
@@ -438,39 +416,71 @@ def change_status(ticket_id):
         flash("Ungültiger Status.", "error")
         return redirect(url_for("tickets.detail", ticket_id=ticket.id))
 
-    alter_status = ticket.status
-    if neuer_status != alter_status:
-        ticket.status = neuer_status
-        _log_history(ticket, HistorienAktion.STATUS_GEAENDERT, alter_status.value, neuer_status.value)
-        db.session.commit()
-        notify_status_changed(ticket, alter_status.value, neuer_status.value)
-        flash("Status aktualisiert.", "success")
-
-    return redirect(url_for("tickets.detail", ticket_id=ticket.id))
-
-
-@tickets_bp.route("/<int:ticket_id>/prioritaet", methods=["POST"])
-@login_required
-def change_priority(ticket_id):
-    ticket = db.get_or_404(Ticket, ticket_id)
-    if not _kann_ticket_verwalten(current_user, ticket):
-        abort(403)
-
     try:
         neue_prioritaet = TicketPrioritaet(request.form.get("prioritaet"))
     except ValueError:
         flash("Ungültige Priorität.", "error")
         return redirect(url_for("tickets.detail", ticket_id=ticket.id))
 
-    alte_prioritaet = ticket.prioritaet
-    if neue_prioritaet != alte_prioritaet:
+    neue_category = db.session.get(Category, request.form.get("category_id", type=int))
+    if not _category_matches_team(neue_category, ticket.team):
+        flash("Ungültige Kategorie.", "error")
+        return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+
+    assignee_id = request.form.get("zugewiesen_an_id", type=int)
+    neuer_zugewiesener = None
+    if assignee_id:
+        neuer_zugewiesener = db.session.get(User, assignee_id)
+        if not neuer_zugewiesener or not neuer_zugewiesener.ist_agent_von(ticket.team_id):
+            flash("Ungültige Zuweisung.", "error")
+            return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+
+    status_wurde_geaendert = neuer_status != ticket.status
+    prioritaet_wurde_geaendert = neue_prioritaet != ticket.prioritaet
+    category_wurde_geaendert = neue_category.id != ticket.category_id
+    neue_zuweisung_id = neuer_zugewiesener.id if neuer_zugewiesener else None
+    zuweisung_wurde_geaendert = neue_zuweisung_id != ticket.zugewiesen_an_id
+
+    if not (
+        status_wurde_geaendert
+        or prioritaet_wurde_geaendert
+        or category_wurde_geaendert
+        or zuweisung_wurde_geaendert
+    ):
+        flash("Keine Änderungen.", "info")
+        return redirect(url_for("tickets.detail", ticket_id=ticket.id))
+
+    alter_status = ticket.status
+    if status_wurde_geaendert:
+        ticket.status = neuer_status
+        _log_history(ticket, HistorienAktion.STATUS_GEAENDERT, alter_status.value, neuer_status.value)
+
+    if prioritaet_wurde_geaendert:
+        alte_prioritaet = ticket.prioritaet
         ticket.prioritaet = neue_prioritaet
         _log_history(
             ticket, HistorienAktion.PRIORITAET_GEAENDERT, alte_prioritaet.value, neue_prioritaet.value
         )
-        db.session.commit()
-        flash("Priorität aktualisiert.", "success")
 
+    if category_wurde_geaendert:
+        alte_category_name = ticket.category.name
+        ticket.category_id = neue_category.id
+        _log_history(ticket, HistorienAktion.KATEGORIE_GEAENDERT, alte_category_name, neue_category.name)
+
+    if zuweisung_wurde_geaendert:
+        alter_wert = ticket.zugewiesen_an.anzeigename if ticket.zugewiesen_an else "Niemand"
+        neuer_wert = neuer_zugewiesener.anzeigename if neuer_zugewiesener else "Niemand"
+        ticket.zugewiesen_an_id = neue_zuweisung_id
+        _log_history(ticket, HistorienAktion.ZUGEWIESEN, alter_wert, neuer_wert)
+
+    db.session.commit()
+
+    if status_wurde_geaendert:
+        notify_status_changed(ticket, alter_status.value, neuer_status.value)
+    if zuweisung_wurde_geaendert and ticket.zugewiesen_an_id:
+        notify_assigned(ticket)
+
+    flash("Ticket aktualisiert.", "success")
     return redirect(url_for("tickets.detail", ticket_id=ticket.id))
 
 

@@ -43,17 +43,25 @@ hervorgehoben (Frist ist vom Admin konfigurierbar, Standard 7 Tage).
 Auf ein Ticket in der Übersicht klicken öffnet die Detailansicht. Dort
 stehen dir folgende Aktionen zur Verfügung:
 
-- **Status ändern**: Offen → In Bearbeitung → Gelöst → Geschlossen. Der
-  Ersteller wird per E-Mail über die Änderung informiert.
-- **Priorität ändern**: Falls die ursprüngliche Einschätzung nicht passt,
-  kannst du sie jederzeit korrigieren.
+Status, Priorität, Kategorie und Zuweisung lassen sich gemeinsam in einem
+Formular mit einem Klick auf **Speichern** übernehmen - du musst also nicht
+mehr für jede Eigenschaft einzeln speichern:
+
+- **Status**: Offen → In Bearbeitung → Gelöst → Geschlossen. Der Ersteller
+  wird per E-Mail über die Änderung informiert.
+- **Priorität**: Falls die ursprüngliche Einschätzung nicht passt, kannst
+  du sie jederzeit korrigieren.
+- **Kategorie**: Auswahl aus den Kategorien des aktuellen Teams.
 - **Zuweisen**: An dich selbst oder ein anderes Mitglied deines Teams. Die
   zugewiesene Person bekommt eine Benachrichtigung.
-- **Team wechseln**: Falls ein Ticket beim falschen Team gelandet ist,
-  kannst du es an ein anderes Team weiterleiten (dabei wird auch die
-  Kategorie neu gewählt, da Kategorien team-spezifisch sind). Eine
-  bestehende Zuweisung wird dabei zurückgesetzt, da sie sich auf das alte
-  Team bezog.
+
+**Team wechseln** bleibt ein eigener Button, da die Auswirkung deutlich
+größer ist: Falls ein Ticket beim falschen Team gelandet ist, kannst du es
+an ein anderes Team weiterleiten (dabei wird auch die Kategorie neu
+gewählt, da Kategorien team-spezifisch sind). Eine bestehende Zuweisung
+wird dabei zurückgesetzt, da sie sich auf das alte Team bezog. Da Nutzer
+ohne Mitgliedschaft im neuen Team danach eventuell keinen Zugriff mehr auf
+das Ticket haben, erscheint vor dem Wechsel ein Bestätigungshinweis.
 
 Alle diese Änderungen werden mit Zeitstempel und deinem Namen in der
 **Historie** am Ende der Ticket-Seite protokolliert.

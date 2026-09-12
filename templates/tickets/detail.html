@@ -40,30 +40,30 @@
 
 {% if kann_verwalten %}
 <div class="ticket-actions">
-    <form method="post" action="{{ url_for('tickets.change_status', ticket_id=ticket.id) }}" class="inline-form">
+    <form method="post" action="{{ url_for('tickets.update_details', ticket_id=ticket.id) }}" class="inline-form ticket-update-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <label>Status</label>
         <select name="status">
             {% for status in TicketStatus %}
             <option value="{{ status.value }}" {% if ticket.status == status %}selected{% endif %}>{{ status.value }}</option>
             {% endfor %}
         </select>
-        <button type="submit">Ändern</button>
-    </form>
 
-    <form method="post" action="{{ url_for('tickets.change_priority', ticket_id=ticket.id) }}" class="inline-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Priorität</label>
         <select name="prioritaet">
             {% for prio in TicketPrioritaet %}
             <option value="{{ prio.value }}" {% if ticket.prioritaet == prio %}selected{% endif %}>{{ prio.value }}</option>
             {% endfor %}
         </select>
-        <button type="submit">Ändern</button>
-    </form>
 
-    <form method="post" action="{{ url_for('tickets.assign', ticket_id=ticket.id) }}" class="inline-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Kategorie</label>
+        <select name="category_id">
+            {% for category in kategorien_by_team.get(ticket.team_id, []) %}
+            <option value="{{ category.id }}" {% if ticket.category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+        </select>
+
         <label>Zuweisen an</label>
         <select name="zugewiesen_an_id">
             <option value="">Niemand</option>
@@ -71,10 +71,11 @@
             <option value="{{ member.id }}" {% if ticket.zugewiesen_an_id == member.id %}selected{% endif %}>{{ member.anzeigename }}</option>
             {% endfor %}
         </select>
-        <button type="submit">Zuweisen</button>
+
+        <button type="submit">Speichern</button>
     </form>
 
-    <form method="post" action="{{ url_for('tickets.change_team', ticket_id=ticket.id) }}" class="inline-form">
+    <form method="post" action="{{ url_for('tickets.change_team', ticket_id=ticket.id) }}" class="inline-form" id="team-change-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Team ändern</label>
         <select name="team_id" id="team-change-select">
@@ -163,6 +164,12 @@
             opt.textContent = cat.name;
             categoryChangeSelect.appendChild(opt);
         });
+    });
+
+    document.getElementById("team-change-form").addEventListener("submit", function (event) {
+        if (!confirm("Team wirklich ändern? Falls du im neuen Team kein Mitglied bist, kannst du danach eventuell nicht mehr auf dieses Ticket zugreifen.")) {
+            event.preventDefault();
+        }
     });
 </script>
 {% endif %}

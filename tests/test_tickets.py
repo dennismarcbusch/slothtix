@@ -238,7 +238,13 @@ def test_non_agent_cannot_change_status(app, client, make_team, make_user):
 
         login_as(client, ersteller)
         response = client.post(
-            f"/tickets/{ticket.id}/status", data={"status": "geschlossen"}
+            f"/tickets/{ticket.id}/aktualisieren",
+            data={
+                "status": "geschlossen",
+                "prioritaet": "mittel",
+                "category_id": str(category.id),
+                "zugewiesen_an_id": "",
+            },
         )
 
         assert response.status_code == 403
@@ -255,7 +261,14 @@ def test_agent_can_change_status_and_history_is_recorded(app, client, make_team,
 
         login_as(client, agent)
         response = client.post(
-            f"/tickets/{ticket.id}/status", data={"status": "in_bearbeitung"}, follow_redirects=True
+            f"/tickets/{ticket.id}/aktualisieren",
+            data={
+                "status": "in_bearbeitung",
+                "prioritaet": "mittel",
+                "category_id": str(category.id),
+                "zugewiesen_an_id": "",
+            },
+            follow_redirects=True,
         )
 
         assert response.status_code == 200
@@ -277,8 +290,13 @@ def test_assign_rejects_non_team_member(app, client, make_team, make_user):
 
         login_as(client, agent)
         response = client.post(
-            f"/tickets/{ticket.id}/zuweisen",
-            data={"zugewiesen_an_id": str(outsider.id)},
+            f"/tickets/{ticket.id}/aktualisieren",
+            data={
+                "status": "offen",
+                "prioritaet": "mittel",
+                "category_id": str(category.id),
+                "zugewiesen_an_id": str(outsider.id),
+            },
             follow_redirects=True,
         )
 
@@ -434,7 +452,15 @@ def test_non_agent_cannot_change_priority(app, client, make_team, make_user):
         ticket = _create_ticket(db, team, category, ersteller)
 
         login_as(client, ersteller)
-        response = client.post(f"/tickets/{ticket.id}/prioritaet", data={"prioritaet": "hoch"})
+        response = client.post(
+            f"/tickets/{ticket.id}/aktualisieren",
+            data={
+                "status": "offen",
+                "prioritaet": "hoch",
+                "category_id": str(category.id),
+                "zugewiesen_an_id": "",
+            },
+        )
 
         assert response.status_code == 403
         assert db.session.get(Ticket, ticket.id).prioritaet == TicketPrioritaet.MITTEL
@@ -450,7 +476,14 @@ def test_agent_can_change_priority_and_history_is_recorded(app, client, make_tea
 
         login_as(client, agent)
         response = client.post(
-            f"/tickets/{ticket.id}/prioritaet", data={"prioritaet": "niedrig"}, follow_redirects=True
+            f"/tickets/{ticket.id}/aktualisieren",
+            data={
+                "status": "offen",
+                "prioritaet": "niedrig",
+                "category_id": str(category.id),
+                "zugewiesen_an_id": "",
+            },
+            follow_redirects=True,
         )
 
         assert response.status_code == 200
@@ -459,6 +492,62 @@ def test_agent_can_change_priority_and_history_is_recorded(app, client, make_tea
         assert len(updated.historie) == 1
         assert updated.historie[0].alter_wert == "mittel"
         assert updated.historie[0].neuer_wert == "niedrig"
+
+
+def test_update_details_changes_all_four_fields_in_one_request(app, client, make_team, make_user):
+    with app.app_context():
+        team = make_team(kategorien=("Drucker defekt", "Heizung"))
+        category = next(k for k in team.kategorien if k.name == "Drucker defekt")
+        andere_category = next(k for k in team.kategorien if k.name == "Heizung")
+        ersteller = make_user(anzeigename="Ersteller", email="e@example.local", ad_username="ersteller")
+        agent = make_user(anzeigename="Agent", email="agent@example.local", ad_username="agent", teams=[team])
+        ticket = _create_ticket(db, team, category, ersteller)
+
+        login_as(client, agent)
+        response = client.post(
+            f"/tickets/{ticket.id}/aktualisieren",
+            data={
+                "status": "in_bearbeitung",
+                "prioritaet": "hoch",
+                "category_id": str(andere_category.id),
+                "zugewiesen_an_id": str(agent.id),
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert "Ticket aktualisiert" in response.get_data(as_text=True)
+        updated = db.session.get(Ticket, ticket.id)
+        assert updated.status == TicketStatus.IN_BEARBEITUNG
+        assert updated.prioritaet == TicketPrioritaet.HOCH
+        assert updated.category_id == andere_category.id
+        assert updated.zugewiesen_an_id == agent.id
+        assert len(updated.historie) == 4
+
+
+def test_update_details_with_unchanged_values_flashes_no_changes(app, client, make_team, make_user):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        ersteller = make_user(anzeigename="Ersteller", email="e@example.local", ad_username="ersteller")
+        agent = make_user(anzeigename="Agent", email="agent@example.local", ad_username="agent", teams=[team])
+        ticket = _create_ticket(db, team, category, ersteller)
+
+        login_as(client, agent)
+        response = client.post(
+            f"/tickets/{ticket.id}/aktualisieren",
+            data={
+                "status": "offen",
+                "prioritaet": "mittel",
+                "category_id": str(category.id),
+                "zugewiesen_an_id": "",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert "Keine Änderungen" in response.get_data(as_text=True)
+        assert len(db.session.get(Ticket, ticket.id).historie) == 0
 
 
 def test_sort_by_titel_ascending_and_descending(app, client, admin_user, make_team):
