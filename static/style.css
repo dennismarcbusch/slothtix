@@ -188,6 +188,8 @@ button:hover, .button:hover { opacity: 0.9; }
 .ticket-table .sort-arrow { margin-left: 0.3rem; font-size: 0.7em; color: var(--color-primary); }
 .ticket-table tr.ticket-alt { background: var(--color-warning-bg); }
 .ticket-table tr.prio-hoch td:first-child { border-left: 3px solid var(--color-danger); }
+.ticket-table tr.prio-mittel td:first-child { border-left: 3px solid var(--color-primary); }
+.ticket-table tr.prio-niedrig td:first-child { border-left: 3px solid var(--color-muted); }
 
 .ticket-meta-table {
     width: 100%;
