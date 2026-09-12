@@ -324,6 +324,41 @@ def test_closed_tickets_hidden_by_default_in_overview(app, client, admin_user, m
         assert b"Geschlossenes Ticket" in response.data
 
 
+def test_board_view_toggle_groups_tickets_by_status(app, client, admin_user, make_team):
+    with app.app_context():
+        team = make_team()
+        category = team.kategorien[0]
+        offen = _create_ticket(db, team, category, admin_user, titel="Offenes Ticket")
+        in_arbeit = _create_ticket(db, team, category, admin_user, titel="Ticket in Arbeit")
+        in_arbeit.status = TicketStatus.IN_BEARBEITUNG
+        db.session.commit()
+
+        login_as(client, admin_user)
+
+        # Standardmäßig weiterhin die Tabellenansicht.
+        response = client.get("/tickets/").get_data(as_text=True)
+        assert "kanban-board" not in response
+        assert "Board-Ansicht" in response
+
+        client.post("/tickets/ansicht-umschalten", follow_redirects=False)
+        response = client.get("/tickets/").get_data(as_text=True)
+
+        assert "kanban-board" in response
+        assert "Listenansicht" in response
+        offen_pos = response.index("Offenes Ticket")
+        in_arbeit_pos = response.index("Ticket in Arbeit")
+        status_offen_pos = response.index('status-offen">offen')
+        status_in_bearbeitung_pos = response.index('status-in_bearbeitung">in_bearbeitung')
+        # Beide Tickets erscheinen jeweils nach der Spaltenüberschrift ihres
+        # eigenen Status - grobe Prüfung, dass die Gruppierung stimmt.
+        assert status_offen_pos < offen_pos < status_in_bearbeitung_pos < in_arbeit_pos
+
+        # Zurückschalten funktioniert ebenso.
+        client.post("/tickets/ansicht-umschalten", follow_redirects=False)
+        response = client.get("/tickets/").get_data(as_text=True)
+        assert "kanban-board" not in response
+
+
 def test_internal_comment_attachment_hidden_from_creator_but_visible_to_agent(
     app, client, make_team, make_user
 ):

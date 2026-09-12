@@ -35,6 +35,12 @@ standardmäßig sind geschlossene Tickets ausgeblendet, um die Übersicht
 die dir persönlich zugewiesen sind. Praktisch, um schnell die eigene
 Arbeitsliste zu sehen.
 
+**„Board-Ansicht":** Zeigt die (gefilterten) Tickets statt als Tabelle als
+Spalten nach Status (Offen, In Bearbeitung, Gelöst, Geschlossen) an - für
+einen schnellen Überblick über den Bearbeitungsstand. Ein Klick auf eine
+Karte öffnet wie gewohnt die Detailansicht; Verschieben per Drag & Drop
+gibt es (noch) nicht. Über „Listenansicht" geht es zurück zur Tabelle.
+
 Tickets, die seit mehreren Tagen unbearbeitet offen sind, werden farblich
 hervorgehoben (Frist ist vom Admin konfigurierbar, Standard 7 Tage).
 

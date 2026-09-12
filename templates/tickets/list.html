@@ -52,8 +52,35 @@
         <button type="submit">{{ "Alle Tickets anzeigen" if only_mine else "Nur mir zugewiesene anzeigen" }}</button>
     </form>
     {% endif %}
+    <form method="post" action="{{ url_for('tickets.toggle_board_view') }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">{{ "Listenansicht" if ansicht == "board" else "Board-Ansicht" }}</button>
+    </form>
 </div>
 
+{% if ansicht == "board" %}
+<div class="kanban-board">
+    {% for status in TicketStatus %}
+    <div class="kanban-column">
+        <h3 class="kanban-column-title">
+            <span class="status-badge status-{{ status.value }}">{{ status.value }}</span>
+            <span class="kanban-count">{{ tickets_by_status.get(status, [])|length }}</span>
+        </h3>
+        <div class="kanban-cards">
+            {% for ticket in tickets_by_status.get(status, []) %}
+            <a class="kanban-card prio-{{ ticket.prioritaet.value }}{% if ticket.status.value in ('offen', 'in_bearbeitung') and ticket.erstellt_am < alt_grenze %} ticket-alt{% endif %}" href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">
+                <div class="kanban-card-title">#{{ ticket.id }} {{ ticket.titel }}</div>
+                <div class="kanban-card-meta">{{ ticket.team.name }} · {{ ticket.category.name }} · {{ ticket.prioritaet.value }}</div>
+                <div class="kanban-card-meta">{{ ticket.ersteller.anzeigename }}{% if ticket.zugewiesen_an %} → {{ ticket.zugewiesen_an.anzeigename }}{% endif %}</div>
+            </a>
+            {% else %}
+            <p class="kanban-empty">Keine Tickets.</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
 {% macro sort_th(spalte, label) %}
 <th><a href="{{ sort_url(spalte) }}" class="sort-link">{{ label }}{% if sort_spalte == spalte %}<span class="sort-arrow">{{ "▲" if sort_richtung == "asc" else "▼" }}</span>{% endif %}</a></th>
 {% endmacro %}
@@ -85,4 +112,5 @@
     </tbody>
 </table>
 </div>
+{% endif %}
 {% endblock %}

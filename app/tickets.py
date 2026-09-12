@@ -214,6 +214,12 @@ def list_view():
     tickets = query.order_by(Ticket.id).all()
     tickets.sort(key=SORTIER_SPALTEN[sort_spalte], reverse=(sort_richtung == "desc"))
 
+    ansicht = "board" if session.get("board_ansicht", False) else "liste"
+    tickets_by_status = {}
+    if ansicht == "board":
+        for ticket in tickets:
+            tickets_by_status.setdefault(ticket.status, []).append(ticket)
+
     def sort_url(spalte):
         args = {k: request.args[k] for k in UEBERNOMMENE_FILTER if k in request.args}
         args["sort"] = spalte
@@ -246,6 +252,8 @@ def list_view():
         sort_url=sort_url,
         sort_spalte=sort_spalte,
         sort_richtung=sort_richtung,
+        ansicht=ansicht,
+        tickets_by_status=tickets_by_status,
         TicketStatus=TicketStatus,
         TicketPrioritaet=TicketPrioritaet,
     )
@@ -255,6 +263,13 @@ def list_view():
 @login_required
 def toggle_closed():
     session["show_closed"] = not session.get("show_closed", False)
+    return redirect(request.referrer or url_for("tickets.list_view"))
+
+
+@tickets_bp.route("/ansicht-umschalten", methods=["POST"])
+@login_required
+def toggle_board_view():
+    session["board_ansicht"] = not session.get("board_ansicht", False)
     return redirect(request.referrer or url_for("tickets.list_view"))
 
 
