@@ -35,11 +35,15 @@ standardmäßig sind geschlossene Tickets ausgeblendet, um die Übersicht
 die dir persönlich zugewiesen sind. Praktisch, um schnell die eigene
 Arbeitsliste zu sehen.
 
+![Ticketübersicht als Tabelle](images/agent-tickets-uebersicht.png)
+
 **„Board-Ansicht":** Zeigt die (gefilterten) Tickets statt als Tabelle als
 Spalten nach Status (Offen, In Bearbeitung, Gelöst, Geschlossen) an - für
 einen schnellen Überblick über den Bearbeitungsstand. Ein Klick auf eine
 Karte öffnet wie gewohnt die Detailansicht; Verschieben per Drag & Drop
 gibt es (noch) nicht. Über „Listenansicht" geht es zurück zur Tabelle.
+
+![Board-Ansicht](images/agent-board-ansicht.png)
 
 Tickets, die seit mehreren Tagen unbearbeitet offen sind, werden farblich
 hervorgehoben (Frist ist vom Admin konfigurierbar, Standard 7 Tage).
@@ -69,6 +73,8 @@ wird dabei zurückgesetzt, da sie sich auf das alte Team bezog. Da Nutzer
 ohne Mitgliedschaft im neuen Team danach eventuell keinen Zugriff mehr auf
 das Ticket haben, erscheint vor dem Wechsel ein Bestätigungshinweis.
 
+![Ticket bearbeiten: Status, Priorität, Kategorie, Zuweisen und Team wechseln](images/agent-ticket-bearbeiten.png)
+
 Alle diese Änderungen werden mit Zeitstempel und deinem Namen in der
 **Historie** am Ende der Ticket-Seite protokolliert.
 
@@ -82,6 +88,8 @@ Unter „Kommentar hinzufügen" kannst du zwischen zwei Sichtbarkeiten wählen:
   benachrichtigen.
 
 Der Ersteller selbst kann nur öffentlich kommentieren.
+
+![Kommentarbereich mit Sichtbarkeit-Auswahl](images/agent-kommentieren.png)
 
 ## Anhänge / Screenshots
 
