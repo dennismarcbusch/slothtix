@@ -1,3 +1,5 @@
+<img src="static/logo-full.png" align="right" width="150" alt="SlothTix-Logo">
+
 # SlothTix
 
 Ein bewusst schlankes Ticket-System für den Einsatz an einer Schule – als
@@ -6,6 +8,8 @@ oder deren Kernfunktionen fehlerhaft sind.
 
 Erste Nutzergruppen sind das IT-Team und das Hausmeister-Team; weitere Teams
 (z. B. Verwaltung) lassen sich später ohne Code-Änderung ergänzen.
+
+<br clear="right">
 
 ## Funktionen
 
