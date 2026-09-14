@@ -18,8 +18,8 @@
             <th>Zugewiesen</th><td>{{ ticket.zugewiesen_an.anzeigename if ticket.zugewiesen_an else "–" }}</td>
         </tr>
         <tr>
-            <th>Erstellt am</th><td>{{ ticket.erstellt_am.strftime("%d.%m.%Y %H:%M") }}</td>
-            <th>Zuletzt geändert</th><td>{{ ticket.aktualisiert_am.strftime("%d.%m.%Y %H:%M") }}</td>
+            <th>Erstellt am</th><td>{{ ticket.erstellt_am|local_dt }}</td>
+            <th>Zuletzt geändert</th><td>{{ ticket.aktualisiert_am|local_dt }}</td>
         </tr>
     </tbody>
 </table>
@@ -99,7 +99,7 @@
     <li class="comment comment-{{ comment.sichtbarkeit.value }}">
         <div class="comment-meta">
             <strong>{{ comment.autor.anzeigename }}</strong>
-            <span>{{ comment.erstellt_am.strftime("%d.%m.%Y %H:%M") }}</span>
+            <span>{{ comment.erstellt_am|local_dt }}</span>
             {% if comment.sichtbarkeit.value == "intern" %}<span class="badge">intern</span>{% endif %}
         </div>
         <div class="comment-text">{{ comment.text }}</div>
@@ -144,7 +144,7 @@
 <h3>Historie</h3>
 <ul class="history">
     {% for eintrag in ticket.historie|sort(attribute="zeitstempel") %}
-    <li>{{ eintrag.zeitstempel.strftime("%d.%m.%Y %H:%M") }} – {{ eintrag.ausgefuehrt_von.anzeigename }}:
+    <li>{{ eintrag.zeitstempel|local_dt }} – {{ eintrag.ausgefuehrt_von.anzeigename }}:
         {{ eintrag.aktion.value }} ({{ eintrag.alter_wert }} → {{ eintrag.neuer_wert }})</li>
     {% endfor %}
 </ul>

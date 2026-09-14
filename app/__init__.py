@@ -1,4 +1,6 @@
 import os
+from datetime import timezone
+from zoneinfo import ZoneInfo
 
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -39,6 +41,22 @@ def _pruefe_secret_key(app):
     )
 
 
+def _registriere_jinja_filter(app):
+    """Stellt den `local_dt`-Filter bereit, der die naiv-UTC gespeicherten
+    Zeitstempel (siehe models.utcnow) erst beim Rendern in die
+    konfigurierte Zeitzone (TIMEZONE) umrechnet - ohne das würden Tickets
+    für alle Nutzer außerhalb UTC mit falscher Uhrzeit angezeigt."""
+
+    def local_dt(dt, fmt="%d.%m.%Y %H:%M"):
+        if dt is None:
+            return ""
+        aware_utc = dt.replace(tzinfo=timezone.utc)
+        lokal = aware_utc.astimezone(ZoneInfo(app.config["TIMEZONE"]))
+        return lokal.strftime(fmt)
+
+    app.jinja_env.filters["local_dt"] = local_dt
+
+
 def create_app(config_class=Config):
     app = Flask(
         __name__,
@@ -48,6 +66,7 @@ def create_app(config_class=Config):
     )
     app.config.from_object(config_class)
     _pruefe_secret_key(app)
+    _registriere_jinja_filter(app)
     os.makedirs(app.instance_path, exist_ok=True)
 
     # Vertraut X-Forwarded-For/-Proto/-Host von genau einem vorgeschalteten

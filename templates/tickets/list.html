@@ -104,7 +104,7 @@
             <td><span class="status-badge status-{{ ticket.status.value }}">{{ ticket.status.value }}</span></td>
             <td>{{ ticket.ersteller.anzeigename }}</td>
             <td>{{ ticket.zugewiesen_an.anzeigename if ticket.zugewiesen_an else "–" }}</td>
-            <td>{{ ticket.erstellt_am.strftime("%d.%m.%Y %H:%M") }}</td>
+            <td>{{ ticket.erstellt_am|local_dt }}</td>
         </tr>
         {% else %}
         <tr><td colspan="9">Keine Tickets gefunden.</td></tr>

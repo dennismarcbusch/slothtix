@@ -63,6 +63,12 @@ class Config:
     SESSION_COOKIE_SECURE = FORCE_HTTPS
     PREFERRED_URL_SCHEME = "https" if FORCE_HTTPS else "http"
 
+    # Zeitzone, in der Zeitstempel (erstellt/aktualisiert am, Verlauf, ...)
+    # den Benutzern angezeigt werden. Intern wird konsequent naiv-UTC
+    # gespeichert (siehe models.utcnow); die Umrechnung passiert erst beim
+    # Rendern über den local_dt-Jinja-Filter.
+    TIMEZONE = os.environ.get("TIMEZONE", "Europe/Berlin")
+
     # Das Session-Cookie soll bei Anfragen von fremden Seiten nicht
     # mitgeschickt werden. Die CSRF-Token sind die eigentliche Absicherung,
     # SameSite ist die zweite Ebene darunter.
