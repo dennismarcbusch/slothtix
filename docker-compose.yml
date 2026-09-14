@@ -21,6 +21,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+    env_file:
+      - .env
     depends_on:
       - slothtix
     restart: unless-stopped
