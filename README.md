@@ -89,6 +89,7 @@ pytest
 
 - [REQUIREMENTS.md](REQUIREMENTS.md) – was gebaut wurde und warum
 - [docs/SETUP.md](docs/SETUP.md) – Installation & Konfiguration im Detail
+- [docs/HANDBUCH_ADMIN.md](docs/HANDBUCH_ADMIN.md) – Handbuch für Admins (Teams, Einstellungen, AD-Abgleich)
 - [docs/HANDBUCH_AGENTEN.md](docs/HANDBUCH_AGENTEN.md) – Handbuch für Team-Mitglieder
 - [docs/HANDBUCH_USER.md](docs/HANDBUCH_USER.md) – Handbuch für alle übrigen Nutzer
 

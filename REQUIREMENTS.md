@@ -11,6 +11,7 @@ Code-Änderung ergänzt werden können.
 Dieses Dokument beschreibt *was* gebaut wurde und *warum*. Für die praktische
 Nutzung/den Betrieb siehe:
 - [docs/SETUP.md](docs/SETUP.md) – Installation & Konfiguration
+- [docs/HANDBUCH_ADMIN.md](docs/HANDBUCH_ADMIN.md) – Handbuch für Admins (Teams, Einstellungen, AD-Abgleich)
 - [docs/HANDBUCH_AGENTEN.md](docs/HANDBUCH_AGENTEN.md) – Handbuch für Team-Mitglieder
 - [docs/HANDBUCH_USER.md](docs/HANDBUCH_USER.md) – Handbuch für alle übrigen Nutzer
 
