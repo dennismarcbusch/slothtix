@@ -6,8 +6,9 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import OperationalError
 from werkzeug.security import generate_password_hash
 
+from app.ad_abgleich import AbgleichFehler, plane_abgleich, wende_an
 from app.extensions import db
-from app.models import Attachment, Comment, Ticket, TicketHistory, User
+from app.models import Attachment, Comment, Settings, Ticket, TicketHistory, User
 
 
 def bootstrap_admin(app):
@@ -271,3 +272,46 @@ def register_cli(app):
         ordner = _entferne_leere_upload_ordner(app)
         if ordner:
             click.echo(f"{ordner} leere Upload-Ordner entfernt.")
+
+    @app.cli.command("users-sync")
+    @click.option(
+        "--ja",
+        is_flag=True,
+        help="Änderungen übernehmen. Ohne diese Option läuft nur ein Probelauf.",
+    )
+    def users_sync_command(ja):
+        """Gleicht alle bekannten AD-Nutzer und ihre Teams mit dem AD ab.
+
+        Wer nicht mehr im Verzeichnis oder in keiner berechtigten Gruppe ist,
+        wird deaktiviert und aus allen Teams entfernt. Bei einem LDAP-Fehler
+        endet das Kommando mit Exit-Code 1, ohne etwas zu ändern.
+        """
+        try:
+            abgleich = plane_abgleich(
+                Settings.get_or_create(), app.config.get("LDAP_BIND_PASSWORD")
+            )
+        except AbgleichFehler as exc:
+            raise click.ClickException(f"{exc} Es wurde nichts geändert.")
+
+        click.echo(f"Geprüfte Nutzer: {abgleich.geprueft}")
+        if not abgleich.aenderungen:
+            click.echo("Keine Änderungen nötig.")
+            return
+
+        for aenderung in abgleich.aenderungen:
+            click.echo(f"{aenderung.user.anzeigename} ({aenderung.user.ad_username})")
+            for zeile in aenderung.beschreibung():
+                click.echo(f"  - {zeile}")
+            for ticket in aenderung.offene_tickets:
+                click.echo(
+                    f"  ! noch zugewiesen: #{ticket.id} {ticket.titel} (Team {ticket.team.name})"
+                )
+
+        if not ja:
+            click.echo("")
+            click.echo("Probelauf - es wurde nichts geändert.")
+            click.echo("Zum Übernehmen dieselbe Zeile mit --ja wiederholen.")
+            return
+
+        wende_an(abgleich)
+        click.echo(f"{len(abgleich.aenderungen)} Nutzer aktualisiert.")

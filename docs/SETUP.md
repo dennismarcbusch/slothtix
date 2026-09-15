@@ -156,7 +156,9 @@ Unter **Teams**:
 
 Mitglieder dieser AD-Gruppen werden beim nächsten Login automatisch als
 Agenten des jeweiligen Teams eingerichtet (Just-in-Time-Synchronisation) –
-es ist keine manuelle Nutzerverwaltung in SlothTix nötig.
+es ist keine manuelle Nutzerverwaltung in SlothTix nötig. Wer später aus dem
+AD oder den Gruppen entfernt wird, verschwindet erst durch den AD-Abgleich
+aus SlothTix (siehe Abschnitt 12).
 
 ## 10. Backup einrichten
 
@@ -200,6 +202,39 @@ vorher einmal `scripts/backup.sh` laufen lassen (siehe Abschnitt 10).
 
 Nebeneffekt, meist erwünscht: Sind alle Tickets gelöscht, beginnt die
 Ticket-Nummerierung wieder bei 1.
+
+## 12. AD-Abgleich: ehemalige Mitglieder entfernen
+
+Nutzer und Team-Zuordnungen werden beim Login aktualisiert. Wer im AD
+gelöscht oder aus den Gruppen genommen wurde, meldet sich aber nicht mehr an
+und würde sonst weiter als Agent angezeigt (z. B. beim Zuweisen von Tickets).
+Der AD-Abgleich prüft deshalb alle bekannten Nutzer auf einmal:
+
+- nicht mehr im AD oder in keiner berechtigten Gruppe → Nutzer wird
+  deaktiviert (eine laufende Sitzung endet sofort) und aus allen Teams
+  entfernt
+- aus einer Team-Gruppe entfernt → verlässt nur dieses Team
+- Anzeigename und E-Mail werden aktualisiert
+
+Gelöscht wird nichts: Tickets, Kommentare und Historie bleiben erhalten.
+Nicht geschlossene Tickets, die betroffenen Nutzern noch zugewiesen sind,
+werden nur als Hinweis angezeigt und sollten von Hand neu zugewiesen werden.
+Taucht jemand später wieder in einer Gruppe auf, wird er beim nächsten Login
+automatisch reaktiviert.
+
+In der Oberfläche unter **AD-Abgleich**: Die Seite zeigt eine Vorschau,
+„Änderungen übernehmen" wendet sie an. Alternativ auf der Kommandozeile
+(ohne `--ja` nur Probelauf):
+
+```bash
+docker compose exec slothtix flask users-sync
+docker compose exec slothtix flask users-sync --ja
+```
+
+Ist das Verzeichnis nicht erreichbar oder würde der Abgleich **alle** aktiven
+Nutzer deaktivieren (typisch für eine falsche Base-DN oder eine umbenannte
+AD-Gruppe), bricht er ohne Änderungen ab; das CLI-Kommando endet dann mit
+Exit-Code 1. Damit lässt es sich später auch per Cron einplanen.
 
 ## Fehlerdiagnose
 

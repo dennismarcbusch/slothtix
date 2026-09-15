@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}AD-Abgleich – SlothTix{% endblock %}
+{% block content %}
+<h1>AD-Abgleich</h1>
+<p class="hint">Gleicht alle bekannten AD-Nutzer mit dem Verzeichnis ab. Wer nicht mehr im AD oder in keiner
+    berechtigten Gruppe ist, wird deaktiviert und aus allen Teams entfernt. Neue Nutzer werden weiterhin erst
+    beim ersten Login angelegt.</p>
+
+{% if fehler %}
+<ul class="flashes">
+    <li class="flash flash-error">{{ fehler }} Es wird nichts geändert.</li>
+</ul>
+{% elif not abgleich.aenderungen %}
+<div class="card">
+    <p>Alles aktuell: {{ abgleich.geprueft }} Nutzer geprüft, keine Änderungen nötig.</p>
+</div>
+{% else %}
+<div class="card">
+    <p>{{ abgleich.geprueft }} Nutzer geprüft, {{ abgleich.aenderungen|length }} mit Änderungen:</p>
+    <ul>
+        {% for aenderung in abgleich.aenderungen %}
+        <li>
+            <strong>{{ aenderung.user.anzeigename }}</strong> ({{ aenderung.user.ad_username }})
+            <ul>
+                {% for zeile in aenderung.beschreibung() %}
+                <li>{{ zeile }}</li>
+                {% endfor %}
+                {% for ticket in aenderung.offene_tickets %}
+                <li class="hint">Noch zugewiesen:
+                    <a href="{{ url_for('tickets.detail', ticket_id=ticket.id) }}">#{{ ticket.id }} {{ ticket.titel }}</a>
+                    (Team {{ ticket.team.name }})</li>
+                {% endfor %}
+            </ul>
+        </li>
+        {% endfor %}
+    </ul>
+    <p class="hint">Zugewiesene Tickets werden nicht verändert und sollten danach neu zugewiesen werden.</p>
+    <form method="post" action="{{ url_for('admin.ad_abgleich_uebernehmen') }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Änderungen übernehmen</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

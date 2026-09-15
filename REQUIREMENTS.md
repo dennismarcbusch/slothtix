@@ -53,6 +53,12 @@ Ein Agent kann Mitglied mehrerer Teams sein.
   dadurch nicht sofort beendet (Konsequenz von reinem JIT-Sync – siehe Punkt 7).
 - Es werden **nur** Mitglieder der konfigurierten Gruppen synchronisiert, nicht
   alle Domänennutzer.
+- **AD-Abgleich:** Da sich ehemalige Mitglieder nicht mehr anmelden, gleicht ein
+  separater Abgleich (Admin-Seite „AD-Abgleich" bzw. `flask users-sync`) alle
+  bekannten Nutzer mit denselben Regeln ab. Wer nicht mehr im AD oder in keiner
+  berechtigten Gruppe ist, wird deaktiviert und aus allen Teams entfernt; neue
+  Nutzer legt der Abgleich nicht an. Würden alle aktiven Nutzer deaktiviert
+  (Verdacht auf Fehlkonfiguration), bricht er ohne Änderungen ab.
 
 ### 3.3 Teams
 - Admin kann Teams anlegen, umbenennen und deaktivieren.
@@ -223,8 +229,10 @@ behalten werden:
    erfolgt, bleibt eine bestehende Session aktiv, auch wenn die AD-Gruppe
    zwischenzeitlich entzogen wurde. Eine Sitzung ist inzwischen auf absolut
    8 Stunden begrenzt (`Config.SESSION_MAX_ALTER`), womit der Entzug
-   spätestens beim nächsten Login greift. Für einen *sofortigen* Entzug
-   wäre weiterhin ein periodischer Re-Check gegen das AD nötig.
+   spätestens beim nächsten Login greift. Der AD-Abgleich (siehe 3.2)
+   deaktiviert ehemalige Mitglieder, was auch laufende Sitzungen sofort
+   beendet – er läuft bisher aber nur manuell; ein automatischer Lauf per
+   Cron ist noch nicht eingerichtet.
 2. **Aufbewahrung/Löschung** geschlossener Tickets und personenbezogener Daten
    (DSGVO-Löschkonzept) ist noch zu definieren.
 3. **Weitere Teams** (Verwaltung etc.) sind strukturell bereits vorgesehen
@@ -252,7 +260,7 @@ behalten werden:
 |---|---|
 | Datenhaltung | SQLite |
 | Authentifizierung | LDAP-Bind gegen UCS |
-| AD-Synchronisation | Just-in-Time beim Login |
+| AD-Synchronisation | Just-in-Time beim Login + AD-Abgleich (manuell, Admin-Seite/CLI) |
 | AD-Gruppen-Mapping | Eine AD-Gruppe pro Team (Agenten) + eine globale Gruppe (User) |
 | Deployment | Docker-Container |
 | Kommentare | Öffentlich + intern |

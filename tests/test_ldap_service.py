@@ -1,7 +1,7 @@
 import pytest
 
-from app.ldap_service import LdapAuthError, authenticate
-from tests.fakes import FakeEntry, FakeSettings, make_connection_factory
+from app.ldap_service import LdapAuthError, authenticate, lookup_users
+from tests.fakes import FakeEntry, FakeSearchConnection, FakeSettings, make_connection_factory
 
 
 def test_authenticate_success_returns_display_name_email_and_groups():
@@ -81,6 +81,46 @@ def test_authenticate_handles_group_dn_with_escaped_comma():
 
     assert "IT-Agenten" in result.gruppen
     assert not any("Groups" in g for g in result.gruppen)
+
+
+def test_lookup_users_liefert_nur_gefundene_nutzer():
+    entry = FakeEntry(
+        "uid=jdoe,dc=example,dc=local",
+        displayName="Jane Doe",
+        mail="jane@example.local",
+        memberOf=["cn=IT-Agenten,dc=example,dc=local"],
+    )
+    settings = FakeSettings()
+    users = {"jdoe": {"dn": "uid=jdoe,dc=example,dc=local", "password": "secret", "entry": entry}}
+    factory = make_connection_factory(settings.ldap_bind_dn, "servicepw", users)
+
+    result = lookup_users(settings, "servicepw", ["jdoe", "ghost"], connection_factory=factory)
+
+    assert list(result) == ["jdoe"]
+    assert result["jdoe"].anzeigename == "Jane Doe"
+    assert result["jdoe"].gruppen == ["IT-Agenten"]
+
+
+def test_lookup_users_service_bind_failure_raises():
+    settings = FakeSettings()
+    factory = make_connection_factory(settings.ldap_bind_dn, "servicepw", {})
+
+    with pytest.raises(LdapAuthError):
+        lookup_users(settings, "falsch", ["jdoe"], connection_factory=factory)
+
+
+def test_lookup_users_bricht_bei_suchfehler_ab():
+    """ldap3 wirft bei z. B. falscher Base-DN keine Exception - ohne
+    Prüfung des Ergebniscodes sähen dann alle Nutzer wie gelöscht aus."""
+    settings = FakeSettings()
+
+    class KaputteSuche(FakeSearchConnection):
+        def search(self, base_dn, search_filter, attributes):
+            self.entries = []
+            self.result = {"result": 32, "description": "noSuchObject"}
+
+    with pytest.raises(LdapAuthError, match="noSuchObject"):
+        lookup_users(settings, "pw", ["jdoe"], connection_factory=lambda u, p: KaputteSuche({}))
 
 
 def test_build_tls_without_ca_path_returns_none():

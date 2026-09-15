@@ -1,8 +1,9 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
 from flask_login import current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from app.ad_abgleich import AbgleichFehler, plane_abgleich, wende_an
 from app.auth import admin_required
 from app.extensions import db
 from app.forms import CategoryForm, PasswortAendernForm, SettingsForm, TeamForm
@@ -115,6 +116,33 @@ def settings_view():
         return redirect(url_for("admin.settings_view"))
 
     return render_template("admin/settings.html", form=form)
+
+
+@admin_bp.route("/ad-abgleich")
+@admin_required
+def ad_abgleich():
+    abgleich, fehler = None, None
+    try:
+        abgleich = plane_abgleich(Settings.get_or_create(), current_app.config.get("LDAP_BIND_PASSWORD"))
+    except AbgleichFehler as exc:
+        fehler = str(exc)
+    return render_template("admin/ad_abgleich.html", abgleich=abgleich, fehler=fehler)
+
+
+@admin_bp.route("/ad-abgleich", methods=["POST"])
+@admin_required
+def ad_abgleich_uebernehmen():
+    # Neu planen statt die angezeigte Vorschau zu übernehmen: Zwischen
+    # Anzeige und Klick kann sich das AD geändert haben.
+    try:
+        abgleich = plane_abgleich(Settings.get_or_create(), current_app.config.get("LDAP_BIND_PASSWORD"))
+    except AbgleichFehler as exc:
+        flash(f"{exc} Es wurde nichts geändert.", "error")
+        return redirect(url_for("admin.ad_abgleich"))
+
+    wende_an(abgleich)
+    flash(f"AD-Abgleich übernommen: {len(abgleich.aenderungen)} Nutzer aktualisiert.", "success")
+    return redirect(url_for("admin.ad_abgleich"))
 
 
 @admin_bp.route("/passwort", methods=["GET", "POST"])

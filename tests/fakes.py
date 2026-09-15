@@ -55,6 +55,7 @@ class FakeSearchConnection:
     def __init__(self, users):
         self.users = users
         self.entries = []
+        self.result = {"result": 0, "description": "success"}
 
     def search(self, base_dn, search_filter, attributes):
         for username, info in self.users.items():

@@ -21,7 +21,8 @@ Erste Nutzergruppen sind das IT-Team und das Hausmeister-Team; weitere Teams
   Teams), User (erstellt Tickets, sieht deren Status)
 - **Authentifizierung per LDAP-Bind** gegen einen Univention Corporate Server
   (UCS) – es werden keine Passwörter lokal gespeichert; Rollen/Teams werden
-  beim Login anhand der AD-Gruppenmitgliedschaft synchronisiert
+  beim Login anhand der AD-Gruppenmitgliedschaft synchronisiert; ehemalige
+  Mitglieder entfernt ein AD-Abgleich (Admin-Seite oder `flask users-sync`)
 - **E-Mail-Benachrichtigungen** per SMTP bei relevanten Ticket-Ereignissen
 
 ## Tech-Stack
@@ -76,6 +77,7 @@ werden nicht über `.env`, sondern später über die Admin-Oberfläche unter
 
 - `flask create-admin` – legt den initialen Admin aus den `ADMIN_*`-Variablen an (läuft beim App-Start ohnehin automatisch)
 - `flask tickets-purge [--alle | --vor JJJJ-MM-TT] [--verwaiste-dateien] [--ja]` – entfernt Test-Tickets vor dem Go-Live (Dry-Run ohne `--ja`)
+- `flask users-sync [--ja]` – gleicht alle bekannten Nutzer und Team-Zuordnungen mit dem AD ab und deaktiviert ehemalige Mitglieder (Dry-Run ohne `--ja`)
 
 ## Tests
 

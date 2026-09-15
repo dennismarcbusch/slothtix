@@ -26,6 +26,7 @@ from wtforms import PasswordField, StringField
 from wtforms.validators import DataRequired
 
 from app import login_throttle
+from app.ad_abgleich import ermittle_berechtigung
 from app.extensions import db
 from app.ldap_service import LdapAuthError
 from app.ldap_service import authenticate as ldap_authenticate
@@ -57,12 +58,9 @@ def sync_user_from_ldap(username, ldap_user, settings):
     ob er Zugriff hat (Mitglied der User-Gruppe oder einer
     Team-Agenten-Gruppe). Gibt den synchronisierten User zurück, oder
     None, wenn keine der konfigurierten Gruppen zutrifft (kein Zugriff)."""
-    ist_user = bool(settings.ad_gruppe_user) and settings.ad_gruppe_user in ldap_user.gruppen
-    agent_teams = [
-        team
-        for team in Team.query.filter_by(aktiv=True).all()
-        if team.ad_gruppe_agenten and team.ad_gruppe_agenten in ldap_user.gruppen
-    ]
+    ist_user, agent_teams = ermittle_berechtigung(
+        ldap_user.gruppen, settings, Team.query.filter_by(aktiv=True).all()
+    )
 
     if not ist_user and not agent_teams:
         return None

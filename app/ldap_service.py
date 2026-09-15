@@ -98,21 +98,11 @@ def authenticate(settings, bind_password, username, password, connection_factory
         raise LdapAuthError("LDAP-Verzeichnis nicht erreichbar.") from exc
 
     try:
-        safe_username = escape_filter_chars(username)
-        search_filter = f"(|(uid={safe_username})(sAMAccountName={safe_username}))"
-        search_conn.search(
-            settings.ldap_base_dn,
-            search_filter,
-            attributes=["cn", "mail", "displayName", "memberOf"],
-        )
-        if not search_conn.entries:
+        entry = _suche_eintrag(search_conn, settings, username)
+        if entry is None:
             raise LdapAuthError("Unbekannter Benutzer.")
-
-        entry = search_conn.entries[0]
         user_dn = entry.entry_dn
-        anzeigename = _attribute_value(entry, "displayName") or _attribute_value(entry, "cn") or username
-        email = _attribute_value(entry, "mail") or ""
-        gruppen = _extract_group_names(entry)
+        ldap_user = _ldap_user_aus_eintrag(entry, username)
     finally:
         search_conn.unbind()
 
@@ -125,7 +115,66 @@ def authenticate(settings, bind_password, username, password, connection_factory
         raise LdapAuthError("LDAP-Verzeichnis nicht erreichbar.") from exc
     user_conn.unbind()
 
-    return LdapUser(anzeigename=anzeigename, email=email, gruppen=gruppen)
+    return ldap_user
+
+
+def lookup_users(settings, bind_password, usernames, connection_factory=None):
+    """Schlägt Nutzer nur mit dem Service-Konto nach, ohne deren Passwort.
+
+    Liefert `{username: LdapUser}`; im Verzeichnis nicht gefundene Nutzer
+    fehlen im Ergebnis. Jeder Fehler während der Suche bricht komplett mit
+    `LdapAuthError` ab: Ein Teilergebnis sähe sonst so aus, als wären die
+    restlichen Nutzer aus dem AD verschwunden."""
+    if not settings.ldap_bind_dn or not settings.ldap_base_dn or not settings.ldap_server:
+        raise LdapAuthError("LDAP ist nicht konfiguriert.")
+
+    if connection_factory is None:
+        connection_factory = _default_connection_factory(settings)
+
+    try:
+        conn = connection_factory(settings.ldap_bind_dn, bind_password)
+    except LDAPException as exc:
+        logger.error("LDAP-Service-Bind fehlgeschlagen: %s", exc)
+        raise LdapAuthError("LDAP-Verzeichnis nicht erreichbar.") from exc
+
+    gefunden = {}
+    try:
+        for username in usernames:
+            entry = _suche_eintrag(conn, settings, username)
+            # ldap3 wirft bei Suchfehlern (z. B. nicht existierende
+            # Base-DN) standardmäßig keine Exception, sondern liefert nur
+            # keine Einträge - daher den Ergebniscode selbst prüfen.
+            if conn.result.get("result") != 0:
+                raise LdapAuthError(
+                    f"LDAP-Suche fehlgeschlagen: {conn.result.get('description')}"
+                )
+            if entry is not None:
+                gefunden[username] = _ldap_user_aus_eintrag(entry, username)
+    except LDAPException as exc:
+        logger.error("LDAP-Suche fehlgeschlagen: %s", exc)
+        raise LdapAuthError("LDAP-Verzeichnis nicht erreichbar.") from exc
+    finally:
+        conn.unbind()
+
+    return gefunden
+
+
+def _suche_eintrag(conn, settings, username):
+    safe_username = escape_filter_chars(username)
+    conn.search(
+        settings.ldap_base_dn,
+        f"(|(uid={safe_username})(sAMAccountName={safe_username}))",
+        attributes=["cn", "mail", "displayName", "memberOf"],
+    )
+    return conn.entries[0] if conn.entries else None
+
+
+def _ldap_user_aus_eintrag(entry, username):
+    return LdapUser(
+        anzeigename=_attribute_value(entry, "displayName") or _attribute_value(entry, "cn") or username,
+        email=_attribute_value(entry, "mail") or "",
+        gruppen=_extract_group_names(entry),
+    )
 
 
 def _attribute_value(entry, name):
