@@ -77,7 +77,7 @@ class SettingsForm(FlaskForm):
         validators=[DataRequired(), NumberRange(min=1, max=Config.MAX_UPLOAD_MB)],
     )
     alte_tickets_tage = IntegerField(
-        "Frist für 'altes' Ticket (Tage)", validators=[DataRequired(), NumberRange(min=1, max=365)]
+        "Offene Tickets hervorheben nach (Tage)", validators=[DataRequired(), NumberRange(min=1, max=365)]
     )
     # InputRequired statt DataRequired: 0 (= nie schließen) ist ein gültiger Wert.
     auto_schliessen_tage = IntegerField(

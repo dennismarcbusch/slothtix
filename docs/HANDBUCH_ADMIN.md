@@ -77,9 +77,9 @@ Unter **Einstellungen**:
   [Setup-Anleitung, Abschnitt 8](SETUP.md#8-ldap-und-smtp-konfigurieren).
 - **E-Mail (SMTP)** – Mailserver für die Benachrichtigungen.
 - **Anhang-Größenlimit (MB)** – maximale Größe je Anhang.
-- **Frist für „altes" Ticket (Tage)** – ab wie vielen Tagen ein
-  unbearbeitet offenes Ticket in der Übersicht farblich hervorgehoben wird
-  (Standard 7).
+- **Offene Tickets hervorheben nach (Tage)** – wie viele Tage nach dem
+  Erstellen ein Ticket, das noch offen oder in Bearbeitung ist, in Liste
+  und Board farblich hervorgehoben wird (Standard 7).
 - **Gelöste Tickets automatisch schließen nach (Tage)** – nach wie vielen
   Tagen ein gelöstes Ticket automatisch geschlossen wird (Standard 14,
   `0` = nie). Die Frist zählt ab dem letzten Setzen auf „Gelöst"; antwortet
