@@ -179,8 +179,8 @@ Ein Agent kann Mitglied mehrerer Teams sein.
 - **Deployment:** Docker-Container auf einem selbst verwalteten Server,
   davor ein Caddy-Reverse-Proxy für automatisches HTTPS via Let's Encrypt
   (Zertifikatsausstellung/-erneuerung läuft vollautomatisch, keine
-  manuelle Certbot-Pflege nötig). Produktiv erreichbar unter
-  `https://tickets.bs-lif.schule`.
+  manuelle Certbot-Pflege nötig). Hostname über `SITE_DOMAIN` konfigurierbar, z. B.
+  `https://tickets.example.org`.
 - **Responsives Layout:** Die Oberfläche ist für mobile Endgeräte nutzbar
   (Smartphone/Tablet), da insbesondere das Hausmeister-Team häufig unterwegs
   ist und Tickets eher am Handy als am PC bearbeitet.
