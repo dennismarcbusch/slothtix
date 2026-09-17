@@ -88,6 +88,7 @@ def test_settings_roundtrip(app, client, admin_user):
             "smtp_from": "slothtix@example.local",
             "anhang_max_groesse_mb": "10",
             "alte_tickets_tage": "14",
+            "auto_schliessen_tage": "0",
         },
         follow_redirects=True,
     )
@@ -101,6 +102,7 @@ def test_settings_roundtrip(app, client, admin_user):
         assert settings.ldap_port == 636
         assert settings.anhang_max_groesse_mb == 10
         assert settings.alte_tickets_tage == 14
+        assert settings.auto_schliessen_tage == 0
 
 
 def test_team_umbenennen_auf_vorhandenen_namen_wird_abgefangen(app, client, admin_user, make_team):

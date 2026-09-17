@@ -58,7 +58,10 @@ Formular mit einem Klick auf **Speichern** übernehmen - du musst also nicht
 mehr für jede Eigenschaft einzeln speichern:
 
 - **Status**: Offen → In Bearbeitung → Gelöst → Geschlossen. Der Ersteller
-  wird per E-Mail über die Änderung informiert.
+  wird per E-Mail über die Änderung informiert. Gelöste Tickets musst du
+  nicht selbst schließen: SlothTix schließt sie nach 14 Tagen automatisch
+  (in der Historie als „System"). Antwortet der Ersteller in der Zeit, zählen
+  die 14 Tage neu – setz das Ticket dann ggf. wieder auf „In Bearbeitung".
 - **Priorität**: Falls die ursprüngliche Einschätzung nicht passt, kannst
   du sie jederzeit korrigieren.
 - **Kategorie**: Auswahl aus den Kategorien des aktuellen Teams.

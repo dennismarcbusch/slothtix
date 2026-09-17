@@ -15,7 +15,8 @@ Erste Nutzergruppen sind das IT-Team und das Hausmeister-Team; weitere Teams
 
 - **Tickets**: Titel, Beschreibung, Team, Priorität, Kategorie, Anhänge
 - **Status-Workflow**: Offen → In Bearbeitung → Gelöst → Geschlossen, inkl.
-  vollständiger Historie zu Status-, Zuweisungs- und Team-Änderungen
+  vollständiger Historie zu Status-, Zuweisungs- und Team-Änderungen; gelöste
+  Tickets werden nach einer einstellbaren Frist automatisch geschlossen
 - **Teams**: frei konfigurierbar, mit je eigenen Kategorien
 - **Rollen**: Admin (Teams & Konfiguration), Agent (bearbeitet Tickets seiner
   Teams), User (erstellt Tickets, sieht deren Status)

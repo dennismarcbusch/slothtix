@@ -80,6 +80,15 @@ Unter **Einstellungen**:
 - **Frist für „altes" Ticket (Tage)** – ab wie vielen Tagen ein
   unbearbeitet offenes Ticket in der Übersicht farblich hervorgehoben wird
   (Standard 7).
+- **Gelöste Tickets automatisch schließen nach (Tage)** – nach wie vielen
+  Tagen ein gelöstes Ticket automatisch geschlossen wird (Standard 14,
+  `0` = nie). Die Frist zählt ab dem letzten Setzen auf „Gelöst"; antwortet
+  der Ersteller danach noch öffentlich, beginnt sie neu. SlothTix prüft
+  höchstens einmal pro Stunde, und zwar bei einem beliebigen Seitenaufruf –
+  ein Ticket kann also ein paar Stunden nach Fristablauf zugehen. Der
+  Ersteller bekommt eine E-Mail, in der Historie steht „System". Steht in
+  den Handbüchern für User und Agenten „14 Tage", diese bei einer anderen
+  Frist bitte anpassen.
 
 Passwörter (LDAP-Bind, SMTP) stehen bewusst nicht hier, sondern in der
 `.env` auf dem Server.

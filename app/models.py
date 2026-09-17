@@ -202,7 +202,8 @@ class TicketHistory(db.Model):
     aktion = db.Column(db.Enum(HistorienAktion), nullable=False)
     alter_wert = db.Column(db.String(255), nullable=True)
     neuer_wert = db.Column(db.String(255), nullable=True)
-    ausgefuehrt_von_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    # NULL = automatische Änderung durch SlothTix selbst ("System").
+    ausgefuehrt_von_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     zeitstempel = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     ticket = db.relationship("Ticket", back_populates="historie")
@@ -249,6 +250,9 @@ class Settings(db.Model):
     smtp_from = db.Column(db.String(255), nullable=True)
     anhang_max_groesse_mb = db.Column(db.Integer, nullable=False, default=5)
     alte_tickets_tage = db.Column(db.Integer, nullable=False, default=7)
+    # 0 = gelöste Tickets nie automatisch schließen.
+    auto_schliessen_tage = db.Column(db.Integer, nullable=False, default=14, server_default="14")
+    auto_schliessen_geprueft_am = db.Column(db.DateTime(timezone=True), nullable=True)
 
     @classmethod
     def get_or_create(cls):

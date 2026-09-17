@@ -78,6 +78,13 @@ Ein Agent kann Mitglied mehrerer Teams sein.
   Ersteinschätzung. Der Admin pflegt die Kategorien je Team.
 - **Priorität:** niedrig / mittel / hoch.
 - **Status-Workflow:** Offen → In Bearbeitung → Gelöst → Geschlossen.
+- **Automatisches Schließen:** Gelöste Tickets werden nach einer
+  konfigurierbaren Frist (Standard 14 Tage, 0 = aus) automatisch geschlossen.
+  Die Frist beginnt mit dem letzten Wechsel auf „Gelöst"; eine spätere
+  öffentliche Antwort des Erstellers startet sie neu. Mangels Scheduler
+  prüft die App höchstens einmal pro Stunde bei einem beliebigen
+  Seitenaufruf. Der Historieneintrag erscheint als „System", der Ersteller
+  wird per E-Mail informiert.
 - **Zuweisung:** Agenten eines Teams können Tickets dieses Teams sich selbst
   oder anderen Team-Mitgliedern zuweisen.
 - **Team-Wechsel:** Ein Agent kann ein falsch zugeordnetes Ticket nachträglich
@@ -145,7 +152,7 @@ Ein Agent kann Mitglied mehrerer Teams sein.
 - E-Mail-Benachrichtigung bei:
   - neuem öffentlichen Kommentar am eigenen Ticket (an den User),
   - neuem Ticket im eigenen Team bzw. neuem Kommentar/Zuweisung (an betroffene Agenten),
-  - Statusänderung (an den User).
+  - Statusänderung, auch durch automatisches Schließen (an den User).
 - Interne Kommentare lösen **keine** Benachrichtigung an User aus.
 - E-Mail-Adresse stammt aus dem AD-Attribut des Nutzers (Sync bei Login).
 - SMTP-Server ist konfigurierbar (Admin-Einstellung).
@@ -278,6 +285,7 @@ behalten werden:
 | Kategorien/Vorlagen | Ja, pro Team konfigurierbar |
 | Suche & Filter | Ja (Status, Priorität, Team, Kategorie, Ersteller, Volltext) |
 | Alte offene Tickets | Visuelle Hervorhebung ab konfigurierbarer Frist (Standard 7 Tage) |
+| Gelöste Tickets | Automatisch geschlossen nach konfigurierbarer Frist (Standard 14 Tage) |
 | Backup | Automatisiert, regelmäßig (z. B. täglich) |
 | Responsives Layout | Ja, mobile-tauglich |
 | Sortierbare Übersicht | Ja, jede Spalte klickbar (Priorität/Status nach Dringlichkeit, nicht alphabetisch) |

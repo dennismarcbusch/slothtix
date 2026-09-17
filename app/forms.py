@@ -8,7 +8,7 @@ from wtforms import (
     StringField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, EqualTo, Length, NumberRange, Optional
+from wtforms.validators import DataRequired, EqualTo, InputRequired, Length, NumberRange, Optional
 
 from app.config import Config
 from app.models import Sichtbarkeit, TicketPrioritaet
@@ -78,6 +78,11 @@ class SettingsForm(FlaskForm):
     )
     alte_tickets_tage = IntegerField(
         "Frist für 'altes' Ticket (Tage)", validators=[DataRequired(), NumberRange(min=1, max=365)]
+    )
+    # InputRequired statt DataRequired: 0 (= nie schließen) ist ein gültiger Wert.
+    auto_schliessen_tage = IntegerField(
+        "Gelöste Tickets automatisch schließen nach (Tage)",
+        validators=[InputRequired(), NumberRange(min=0, max=365)],
     )
 
 

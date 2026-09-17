@@ -33,6 +33,8 @@
         <legend>Sonstiges</legend>
         <div class="field">{{ form.anhang_max_groesse_mb.label }} {{ form.anhang_max_groesse_mb() }}</div>
         <div class="field">{{ form.alte_tickets_tage.label }} {{ form.alte_tickets_tage() }}</div>
+        <div class="field">{{ form.auto_schliessen_tage.label }} {{ form.auto_schliessen_tage() }}</div>
+        <p class="hint">Zählt ab dem Setzen auf „Gelöst" bzw. ab der letzten Antwort des Erstellers. 0 = nie automatisch schließen.</p>
     </fieldset>
     <button type="submit">Speichern</button>
 </form>

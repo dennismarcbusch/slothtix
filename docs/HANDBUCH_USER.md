@@ -52,6 +52,11 @@ aktuellem Status:
 - **Gelöst**: erledigt
 - **Geschlossen**: abgeschlossen und archiviert
 
+Gelöste Tickets werden nach 14 Tagen automatisch geschlossen. Ist das
+Problem doch noch nicht behoben, antworte einfach mit einem Kommentar – dann
+beginnen die 14 Tage von vorn und das Team sieht deine Nachricht. Nach dem
+Schließen erstellst du bei Bedarf ein neues Ticket.
+
 Geschlossene Tickets sind standardmäßig ausgeblendet – über den Button
 **„Geschlossene einblenden"** lassen sie sich bei Bedarf wieder anzeigen.
 
@@ -77,6 +82,7 @@ nicht, da sie nur der teaminternen Abstimmung dienen.
 
 Du bekommst automatisch eine E-Mail, wenn:
 - jemand aus dem zuständigen Team öffentlich auf dein Ticket antwortet,
-- sich der Status deines Tickets ändert (z. B. auf „Gelöst").
+- sich der Status deines Tickets ändert (z. B. auf „Gelöst") – auch wenn es
+  automatisch geschlossen wird.
 
 So musst du nicht aktiv nachschauen, ob sich etwas getan hat.

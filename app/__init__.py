@@ -88,6 +88,7 @@ def create_app(config_class=Config):
     from app import models  # noqa: F401  (Modelle für Migrationen registrieren)
     from app.admin import admin_bp
     from app.auth import auth_bp, login_manager
+    from app.auto_schliessen import registriere_auto_schliessen
     from app.routes import main_bp
     from app.tickets import tickets_bp
 
@@ -97,6 +98,7 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
     app.register_blueprint(tickets_bp)
     app.register_blueprint(admin_bp)
+    registriere_auto_schliessen(app)
 
     with app.app_context():
         bootstrap_admin(app)

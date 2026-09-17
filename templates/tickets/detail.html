@@ -144,7 +144,7 @@
 <h3>Historie</h3>
 <ul class="history">
     {% for eintrag in ticket.historie|sort(attribute="zeitstempel") %}
-    <li>{{ eintrag.zeitstempel|local_dt }} – {{ eintrag.ausgefuehrt_von.anzeigename }}:
+    <li>{{ eintrag.zeitstempel|local_dt }} – {{ eintrag.ausgefuehrt_von.anzeigename if eintrag.ausgefuehrt_von else "System" }}:
         {{ eintrag.aktion.value }} ({{ eintrag.alter_wert }} → {{ eintrag.neuer_wert }})</li>
     {% endfor %}
 </ul>

@@ -59,6 +59,20 @@ def notify_status_changed(ticket, alter_status, neuer_status):
     )
 
 
+def benachrichtigung_auto_geschlossen(ticket, tage):
+    """Liefert (Empfänger, Betreff, Text) statt direkt zu senden: Der
+    Versand passiert erst nach der Antwort, der Ticket-Link braucht aber
+    noch den Request-Kontext."""
+    return (
+        ticket.ersteller.email,
+        f"[SlothTix] Ticket #{ticket.id} automatisch geschlossen: {ticket.titel}",
+        f"Dein Ticket war seit {tage} Tagen als gelöst markiert und wurde deshalb "
+        f"automatisch geschlossen.\n\n"
+        f"Falls das Problem weiterhin besteht, erstelle bitte ein neues Ticket.\n\n"
+        f"{_ticket_url(ticket)}",
+    )
+
+
 def notify_assigned(ticket):
     if ticket.zugewiesen_an is None:
         return
