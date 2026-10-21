@@ -1,8 +1,9 @@
+import hashlib
 import os
 from datetime import timezone
 from zoneinfo import ZoneInfo
 
-from flask import Flask
+from flask import Flask, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.cli import bootstrap_admin, register_cli
@@ -57,6 +58,24 @@ def _registriere_jinja_filter(app):
     app.jinja_env.filters["local_dt"] = local_dt
 
 
+def _registriere_static_url(app):
+    """Stellt `static_url` bereit: wie url_for("static", ...), aber mit
+    einem Hash des Dateiinhalts als ?v=. Ändert sich style.css mit einem
+    Update, ändert sich damit die URL - sonst zeigen Browser aus dem Cache
+    weiter das alte Layout, bis jemand Strg+F5 drückt."""
+    hashes = {}
+
+    def static_url(filename):
+        # Im Debug-Modus jedes Mal neu rechnen, damit Änderungen beim
+        # Entwickeln ohne Neustart greifen.
+        if app.debug or filename not in hashes:
+            with open(os.path.join(app.static_folder, filename), "rb") as datei:
+                hashes[filename] = hashlib.sha256(datei.read()).hexdigest()[:12]
+        return url_for("static", filename=filename, v=hashes[filename])
+
+    app.jinja_env.globals["static_url"] = static_url
+
+
 def create_app(config_class=Config):
     app = Flask(
         __name__,
@@ -67,6 +86,7 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     _pruefe_secret_key(app)
     _registriere_jinja_filter(app)
+    _registriere_static_url(app)
     os.makedirs(app.instance_path, exist_ok=True)
 
     # Vertraut X-Forwarded-For/-Proto/-Host von genau einem vorgeschalteten

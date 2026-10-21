@@ -1,6 +1,7 @@
 """Betriebsnahe Prüfungen: Fehlerseiten, SQLite-Einstellungen, Aufräumen."""
 
 import os
+import re
 
 from sqlalchemy import text
 
@@ -45,6 +46,16 @@ def test_404_nutzt_das_anwendungslayout(client):
     text_ = response.get_data(as_text=True)
     assert "Diese Seite gibt es nicht" in text_
     assert "SlothTix" in text_
+
+
+def test_css_und_js_tragen_inhaltshash(app, client, admin_user):
+    # Nach einem Update muss der Browser die neue style.css laden, statt
+    # das alte Layout aus dem Cache zu zeigen.
+    login_as(client, admin_user)
+    html = client.get("/tickets/").get_data(as_text=True)
+    assert re.search(r'/static/style\.css\?v=[0-9a-f]{12}"', html)
+    assert re.search(r'/static/paste-upload\.js\?v=[0-9a-f]{12}"', html)
+    assert client.get(re.search(r'/static/style\.css\?v=\w+', html).group(0)).status_code == 200
 
 
 def test_403_nutzt_das_anwendungslayout(app, client, make_team, make_user):

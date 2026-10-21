@@ -74,6 +74,7 @@ a { color: var(--color-primary); }
     margin: 0 auto;
     padding: 1.25rem;
 }
+.container-breit { max-width: 1920px; }
 
 .card {
     background: var(--color-surface);
@@ -170,12 +171,12 @@ button:hover, .button:hover { opacity: 0.9; }
     padding: 0.5rem 0.7rem;
     border-bottom: 1px solid var(--color-border);
     text-align: left;
-    white-space: nowrap;
 }
-.ticket-table td.col-titel {
-    white-space: normal;
-    max-width: 320px;
-}
+/* Nur kurze, gleich breite Werte bleiben einzeilig. Lange Team-,
+   Kategorie- oder Personennamen dürfen umbrechen - sonst wird die Tabelle
+   breiter als der Bildschirm. */
+.ticket-table td.col-eng { white-space: nowrap; }
+.ticket-table td.col-titel { min-width: 14rem; }
 .ticket-table th { padding: 0; }
 .ticket-table .sort-link {
     display: block;
