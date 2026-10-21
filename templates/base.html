@@ -21,6 +21,9 @@
         <nav class="main-nav">
             <a href="{{ url_for('tickets.list_view') }}">Tickets</a>
             <a href="{{ url_for('tickets.new') }}">Neues Ticket</a>
+            {% if current_user.ist_agent %}
+            <a href="{{ url_for('benachrichtigungen.einstellungen') }}">Benachrichtigungen</a>
+            {% endif %}
             {% if current_user.ist_admin %}
             <a href="{{ url_for('admin.teams') }}">Teams</a>
             <a href="{{ url_for('admin.ad_abgleich') }}">AD-Abgleich</a>

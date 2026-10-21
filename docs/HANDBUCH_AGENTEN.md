@@ -117,3 +117,26 @@ Du bekommst eine E-Mail, wenn:
 - der Ersteller eines Tickets in deinem Team öffentlich antwortet.
 
 Interne Kommentare lösen keine Benachrichtigung an den User aus.
+
+Unter **Benachrichtigungen** in der oberen Leiste stellst du selbst ein,
+welche dieser Mails du bekommst:
+
+- **Neue Tickets in meinen Teams:** alle, erst ab Priorität mittel, nur
+  Priorität hoch oder keine.
+- **Ersteller antwortet** und **Ticket wird mir zugewiesen:** jeweils ein-
+  oder ausschaltbar.
+
+Mails zu Tickets, die du selbst erstellt hast, bekommst du immer.
+
+### Morgendliche Zusammenfassung
+
+Auf derselben Seite kannst du dir einmal am Tag zu einer festen Uhrzeit eine
+Mail mit allen offenen und in Bearbeitung befindlichen Tickets deiner Teams
+schicken lassen, auf Wunsch nur von Montag bis Freitag. Die Mail ist
+gegliedert in „Dir zugewiesen", „Noch niemandem zugewiesen" und „Bei
+Kollegen", dringende Tickets stehen jeweils oben. Ist nichts offen, kommt
+keine Mail.
+
+Wer die Zusammenfassung nutzt, kann die Mails zu neuen Tickets z. B. auf
+„nur Priorität hoch" stellen und bekommt Unwichtigeres dann gesammelt am
+Morgen.

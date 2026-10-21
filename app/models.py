@@ -1,7 +1,8 @@
 import enum
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 
 from flask_login import UserMixin
+from sqlalchemy import false, true
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
@@ -33,6 +34,25 @@ class Sichtbarkeit(enum.Enum):
     INTERN = "intern"
 
 
+class MailNeueTickets(enum.Enum):
+    """Ab welcher Priorität ein Agent über neue Tickets seines Teams
+    benachrichtigt wird."""
+
+    ALLE = "alle"
+    AB_MITTEL = "ab_mittel"
+    NUR_HOCH = "nur_hoch"
+    KEINE = "keine"
+
+    def gilt_fuer(self, prioritaet):
+        erlaubt = {
+            MailNeueTickets.ALLE: set(TicketPrioritaet),
+            MailNeueTickets.AB_MITTEL: {TicketPrioritaet.MITTEL, TicketPrioritaet.HOCH},
+            MailNeueTickets.NUR_HOCH: {TicketPrioritaet.HOCH},
+            MailNeueTickets.KEINE: set(),
+        }
+        return prioritaet in erlaubt[self]
+
+
 class HistorienAktion(enum.Enum):
     STATUS_GEAENDERT = "status_geaendert"
     ZUGEWIESEN = "zugewiesen"
@@ -61,6 +81,32 @@ class User(UserMixin, db.Model):
     passwort_hash = db.Column(db.String(255), nullable=True)
     erstellt_am = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     letzter_login_am = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    # Benachrichtigungs-Einstellungen, die jeder Agent selbst festlegt
+    # (app/benachrichtigungen.py). Die Defaults entsprechen dem Verhalten
+    # vor Einführung der Einstellungen: alle Mails, keine Zusammenfassung.
+    mail_neue_tickets = db.Column(
+        db.Enum(MailNeueTickets),
+        nullable=False,
+        default=MailNeueTickets.ALLE,
+        server_default=MailNeueTickets.ALLE.name,
+    )
+    mail_antworten = db.Column(db.Boolean, nullable=False, default=True, server_default=true())
+    mail_zuweisung = db.Column(db.Boolean, nullable=False, default=True, server_default=true())
+    zusammenfassung_aktiv = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=false()
+    )
+    # Lokale Uhrzeit (Config.TIMEZONE), nicht UTC - "7 Uhr" soll auch nach
+    # der Zeitumstellung 7 Uhr bleiben.
+    zusammenfassung_uhrzeit = db.Column(
+        db.Time, nullable=False, default=time(7, 0), server_default="07:00:00.000000"
+    )
+    zusammenfassung_nur_werktags = db.Column(
+        db.Boolean, nullable=False, default=True, server_default=true()
+    )
+    # Lokales Datum des letzten Versands - verhindert, dass dieselbe
+    # Zusammenfassung an einem Tag doppelt rausgeht.
+    zusammenfassung_gesendet_am = db.Column(db.Date, nullable=True)
 
     teams = db.relationship(
         "Team", secondary=team_memberships, back_populates="mitglieder"

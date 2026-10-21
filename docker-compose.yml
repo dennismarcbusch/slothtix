@@ -12,6 +12,24 @@ services:
       - .env
     restart: unless-stopped
 
+  # Verschickt die morgendlichen Zusammenfassungen, die Agenten unter
+  # /benachrichtigungen einschalten. Gleiches Image und gleiche Datenbank
+  # wie slothtix, aber ohne Webserver - die Web-Worker laufen nur, wenn
+  # jemand eine Seite aufruft.
+  zusammenfassungen:
+    build: .
+    command: ["flask", "zusammenfassungen", "--dauerhaft"]
+    # Leitet SIGTERM an Python weiter, damit `docker compose stop` nicht
+    # zehn Sekunden auf den Kill wartet.
+    init: true
+    volumes:
+      - slothtix-instance:/app/instance
+    env_file:
+      - .env
+    depends_on:
+      - slothtix
+    restart: unless-stopped
+
   caddy:
     image: caddy:2-alpine
     ports:

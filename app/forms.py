@@ -7,11 +7,12 @@ from wtforms import (
     SelectField,
     StringField,
     TextAreaField,
+    TimeField,
 )
 from wtforms.validators import DataRequired, EqualTo, InputRequired, Length, NumberRange, Optional
 
 from app.config import Config
-from app.models import Sichtbarkeit, TicketPrioritaet
+from app.models import MailNeueTickets, Sichtbarkeit, TicketPrioritaet
 
 
 def _coerce_int_or_none(value):
@@ -84,6 +85,24 @@ class SettingsForm(FlaskForm):
         "Gelöste Tickets automatisch schließen nach (Tage)",
         validators=[InputRequired(), NumberRange(min=0, max=365)],
     )
+
+
+class BenachrichtigungenForm(FlaskForm):
+    mail_neue_tickets = SelectField(
+        "Neue Tickets in meinen Teams",
+        choices=[
+            (MailNeueTickets.ALLE.value, "alle"),
+            (MailNeueTickets.AB_MITTEL.value, "ab Priorität mittel"),
+            (MailNeueTickets.NUR_HOCH.value, "nur Priorität hoch"),
+            (MailNeueTickets.KEINE.value, "keine"),
+        ],
+        coerce=MailNeueTickets,
+    )
+    mail_antworten = BooleanField("Ersteller antwortet auf ein Ticket meiner Teams")
+    mail_zuweisung = BooleanField("Ein Ticket wird mir zugewiesen")
+    zusammenfassung_aktiv = BooleanField("Morgens eine Zusammenfassung der offenen Tickets schicken")
+    zusammenfassung_uhrzeit = TimeField("Uhrzeit", validators=[InputRequired()])
+    zusammenfassung_nur_werktags = BooleanField("Nur Montag bis Freitag")
 
 
 class PasswortAendernForm(FlaskForm):

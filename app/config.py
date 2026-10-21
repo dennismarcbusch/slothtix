@@ -62,6 +62,10 @@ class Config:
     FORCE_HTTPS = os.environ.get("FORCE_HTTPS", "false").lower() == "true"
     SESSION_COOKIE_SECURE = FORCE_HTTPS
     PREFERRED_URL_SCHEME = "https" if FORCE_HTTPS else "http"
+    # Derselbe Hostname, den Caddy bedient. Die App braucht ihn nur dort,
+    # wo kein Request existiert, aus dem sie ihn ablesen könnte - für die
+    # Ticket-Links in der morgendlichen Zusammenfassung.
+    SITE_DOMAIN = os.environ.get("SITE_DOMAIN")
 
     # Zeitzone, in der Zeitstempel (erstellt/aktualisiert am, Verlauf, ...)
     # den Benutzern angezeigt werden. Intern wird konsequent naiv-UTC

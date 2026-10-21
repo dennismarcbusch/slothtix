@@ -154,6 +154,12 @@ Ein Agent kann Mitglied mehrerer Teams sein.
   - neuem Ticket im eigenen Team bzw. neuem Kommentar/Zuweisung (an betroffene Agenten),
   - Statusänderung, auch durch automatisches Schließen (an den User).
 - Interne Kommentare lösen **keine** Benachrichtigung an User aus.
+- Agenten legen selbst fest, welche Agenten-Mails sie bekommen (neue Tickets
+  nach Mindestpriorität, Antworten des Erstellers, Zuweisungen). Mails an den
+  Ersteller lassen sich nicht abschalten.
+- Optional: tägliche Zusammenfassung der offenen und in Bearbeitung
+  befindlichen Tickets der eigenen Teams zu einer selbst gewählten Uhrzeit,
+  wahlweise nur werktags.
 - E-Mail-Adresse stammt aus dem AD-Attribut des Nutzers (Sync bei Login).
 - SMTP-Server ist konfigurierbar (Admin-Einstellung).
 

@@ -45,6 +45,7 @@ Danach `.env` bearbeiten:
 | `SMTP_TLS_INSECURE` | Notausgang für selbstsignierte Mailserver-Zertifikate – schaltet die Prüfung ab, nur bewusst setzen |
 | `LDAP_CA_CERT_PATH` | Pfad zur CA-Zertifikatsdatei für die LDAPS-Prüfung (siehe unten) |
 | `FORCE_HTTPS` | `true`, sobald Caddy als Reverse-Proxy davor läuft (siehe Abschnitt 5) – nur lokal ohne Proxy auf `false` setzen |
+| `SITE_DOMAIN` | Hostname, unter dem SlothTix erreichbar ist (siehe Abschnitt 5). Wird auch für die Ticket-Links in den morgendlichen Zusammenfassungen gebraucht |
 
 **Wichtig:** `.env` enthält Geheimnisse und darf nie ins Git-Repository
 committet werden (ist bereits über `.gitignore` ausgeschlossen).
@@ -82,13 +83,11 @@ Pfad in `.env` unter `LDAP_CA_CERT_PATH=/app/certs/ucs-ca.pem` eintragen.
 
 Für den Betrieb unter einer eigenen Domain ist `Caddy` als Reverse-Proxy
 bereits in `docker-compose.yml` konfiguriert und übernimmt die
-Let's-Encrypt-Zertifikatsausstellung automatisch. Domain in der `Caddyfile`
-anpassen:
+Let's-Encrypt-Zertifikatsausstellung automatisch. Die Domain kommt aus
+`SITE_DOMAIN` in der `.env`, die `Caddyfile` muss nicht angepasst werden:
 
 ```
-eure-domain.schule {
-    reverse_proxy slothtix:8000
-}
+SITE_DOMAIN=eure-domain.schule
 ```
 
 Danach `FORCE_HTTPS=true` in `.env` setzen (siehe Schritt 2).
@@ -109,6 +108,12 @@ dann ist die App nur per HTTP unter `http://<server-ip>:8000` erreichbar.
 ```bash
 docker compose up -d --build
 ```
+
+Neben `slothtix` und `caddy` startet dabei der Dienst `zusammenfassungen`.
+Er verschickt die morgendlichen Zusammenfassungen, die Agenten unter
+**Benachrichtigungen** einschalten, und prüft dafür jede Minute, ob eine
+fällig ist. Ohne ihn kommen keine Zusammenfassungen, alle anderen Mails
+schon.
 
 Bei aktivem Caddy-Setup: Zertifikatsstatus prüfen mit
 `docker compose logs caddy -f` (Erfolg erkennbar an

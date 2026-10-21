@@ -24,7 +24,9 @@ Erste Nutzergruppen sind das IT-Team und das Hausmeister-Team; weitere Teams
   (UCS) – es werden keine Passwörter lokal gespeichert; Rollen/Teams werden
   beim Login anhand der AD-Gruppenmitgliedschaft synchronisiert; ehemalige
   Mitglieder entfernt ein AD-Abgleich (Admin-Seite oder `flask users-sync`)
-- **E-Mail-Benachrichtigungen** per SMTP bei relevanten Ticket-Ereignissen
+- **E-Mail-Benachrichtigungen** per SMTP bei relevanten Ticket-Ereignissen;
+  Agenten stellen selbst ein, welche Mails sie bekommen, und können sich
+  morgens eine Zusammenfassung der offenen Tickets schicken lassen
 
 ## Tech-Stack
 
@@ -42,9 +44,11 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-`docker-compose.yml` startet zwei Dienste:
+`docker-compose.yml` startet drei Dienste:
 - `slothtix` – die Anwendung (Gunicorn, führt beim Start automatisch
   `flask db upgrade` aus)
+- `zusammenfassungen` – verschickt die morgendlichen Zusammenfassungen
+  (`flask zusammenfassungen --dauerhaft`)
 - `caddy` – Reverse Proxy mit TLS auf Port 80/443
 
 ### Lokale Entwicklung ohne Docker
@@ -69,6 +73,7 @@ flask --app wsgi:app run
 | `LDAP_CA_CERT_PATH` | Pfad zum CA-Zertifikat für LDAPS (Datei unter `./certs/` ablegen) |
 | `SMTP_PASSWORD`, `SMTP_USE_TLS`, `SMTP_CA_CERT_PATH`, `SMTP_TLS_INSECURE` | SMTP-Zugangsdaten und TLS-Prüfung für den Mailversand |
 | `FORCE_HTTPS` | `true` (Standard); nur für lokale Entwicklung ohne Reverse Proxy auf `false` setzen |
+| `SITE_DOMAIN` | Hostname für Caddy und für die Ticket-Links in den morgendlichen Zusammenfassungen |
 
 Server-/Verbindungsdetails für LDAP und SMTP (Host, Base-DN, AD-Gruppen, …)
 werden nicht über `.env`, sondern später über die Admin-Oberfläche unter
@@ -78,6 +83,7 @@ werden nicht über `.env`, sondern später über die Admin-Oberfläche unter
 
 - `flask create-admin` – legt den initialen Admin aus den `ADMIN_*`-Variablen an (läuft beim App-Start ohnehin automatisch)
 - `flask tickets-purge [--alle | --vor JJJJ-MM-TT] [--verwaiste-dateien] [--ja]` – entfernt Test-Tickets vor dem Go-Live (Dry-Run ohne `--ja`)
+- `flask zusammenfassungen [--dauerhaft]` – verschickt die fälligen Morgen-Zusammenfassungen (einmalig bzw. als Dienst jede Minute)
 - `flask users-sync [--ja]` – gleicht alle bekannten Nutzer und Team-Zuordnungen mit dem AD ab und deaktiviert ehemalige Mitglieder (Dry-Run ohne `--ja`)
 
 ## Tests

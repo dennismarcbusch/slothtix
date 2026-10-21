@@ -1,6 +1,9 @@
 """Benachrichtigungs-Trigger für Ticket-Ereignisse (REQUIREMENTS.md 3.7).
 
 Interne Kommentare lösen bewusst keine Benachrichtigung an den User aus.
+Welche Mails Agenten bekommen, legen sie selbst fest (siehe
+app/benachrichtigungen.py); die Mails an den Ersteller sind davon nicht
+betroffen.
 """
 
 from flask import url_for
@@ -19,7 +22,13 @@ def notify_ticket_created(ticket):
         f"Ein neues Ticket wurde erstellt von {ticket.ersteller.anzeigename}:\n\n"
         f"{ticket.titel}\n\n{ticket_summary(ticket)}"
     )
-    send_mails([(agent.email, betreff, text) for agent in ticket.team.mitglieder])
+    send_mails(
+        [
+            (agent.email, betreff, text)
+            for agent in ticket.team.mitglieder
+            if agent.mail_neue_tickets.gilt_fuer(ticket.prioritaet)
+        ]
+    )
 
 
 def notify_comment_added(comment):
@@ -38,7 +47,7 @@ def notify_comment_added(comment):
             [
                 (agent.email, betreff, text)
                 for agent in ticket.team.mitglieder
-                if agent.id != comment.autor_id
+                if agent.id != comment.autor_id and agent.mail_antworten
             ]
         )
     else:
@@ -74,7 +83,7 @@ def benachrichtigung_auto_geschlossen(ticket, tage):
 
 
 def notify_assigned(ticket):
-    if ticket.zugewiesen_an is None:
+    if ticket.zugewiesen_an is None or not ticket.zugewiesen_an.mail_zuweisung:
         return
     send_mail(
         ticket.zugewiesen_an.email,

@@ -1,14 +1,16 @@
 import os
+import time
 from datetime import datetime
 
 import click
 from sqlalchemy import func, or_
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from werkzeug.security import generate_password_hash
 
 from app.ad_abgleich import AbgleichFehler, plane_abgleich, wende_an
 from app.extensions import db
 from app.models import Attachment, Comment, Settings, Ticket, TicketHistory, User
+from app.zusammenfassung import link_kontext, sende_faellige_zusammenfassungen
 
 
 def bootstrap_admin(app):
@@ -315,3 +317,38 @@ def register_cli(app):
 
         wende_an(abgleich)
         click.echo(f"{len(abgleich.aenderungen)} Nutzer aktualisiert.")
+
+    @app.cli.command("zusammenfassungen")
+    @click.option(
+        "--dauerhaft",
+        is_flag=True,
+        help="Als Dienst weiterlaufen und jede Minute prüfen (siehe docker-compose.yml).",
+    )
+    def zusammenfassungen_command(dauerhaft):
+        """Verschickt die fälligen Morgen-Zusammenfassungen an Agenten.
+
+        Wann eine Zusammenfassung fällig ist, legt jeder Agent unter
+        /benachrichtigungen fest. Ohne --dauerhaft läuft genau eine Prüfung.
+        """
+        while True:
+            try:
+                with link_kontext(app):
+                    gesendet = sende_faellige_zusammenfassungen()
+                if gesendet or not dauerhaft:
+                    click.echo(f"{len(gesendet)} Zusammenfassung(en) verschickt.")
+            except SQLAlchemyError as exc:
+                if not dauerhaft:
+                    raise
+                # Z. B. beim ersten Start, bevor der App-Container die
+                # Migrationen eingespielt hat - der nächste Durchlauf
+                # versucht es erneut.
+                db.session.rollback()
+                app.logger.warning("Zusammenfassungen fehlgeschlagen: %s", exc)
+            finally:
+                # Frische Session je Durchlauf, sonst sieht der Dienst
+                # geänderte Einstellungen erst nach einem Neustart.
+                db.session.remove()
+
+            if not dauerhaft:
+                return
+            time.sleep(60)
