@@ -1,6 +1,9 @@
 services:
   slothtix:
     build: .
+    # Fester Name, damit zusammenfassungen dasselbe Image nutzt, statt ein
+    # zweites, identisches zu bauen.
+    image: slothtix:latest
     expose:
       - "8000"
     volumes:
@@ -17,7 +20,10 @@ services:
   # wie slothtix, aber ohne Webserver - die Web-Worker laufen nur, wenn
   # jemand eine Seite aufruft.
   zusammenfassungen:
-    build: .
+    image: slothtix:latest
+    # Wird von slothtix gebaut. Nie aus einer Registry ziehen - fehlt das
+    # Image, soll das auffallen, statt dass ein fremdes "slothtix" startet.
+    pull_policy: never
     command: ["flask", "zusammenfassungen", "--dauerhaft"]
     # Leitet SIGTERM an Python weiter, damit `docker compose stop` nicht
     # zehn Sekunden auf den Kill wartet.
