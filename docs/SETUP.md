@@ -167,18 +167,51 @@ aus SlothTix (siehe Abschnitt 12).
 
 ## 10. Backup einrichten
 
+Datenbank und Anhänge liegen im Docker-Volume `slothtix-instance`, nicht im
+Ordner `instance/` des Repositorys. Gesichert wird deshalb mit
+`scripts/backup-docker.sh`: Es lässt die Sicherung im laufenden Container
+erstellen und kopiert sie auf den Host.
+
+Einmal von Hand testen:
+```bash
+scripts/backup-docker.sh /backups
+```
+Im neuen Ordner unter `/backups` müssen `slothtix.db` und (sobald es Anhänge
+gibt) `uploads/` liegen.
+
+Dann täglich um 3 Uhr per Cron:
 ```bash
 crontab -e
 ```
-Ergänzen (täglich um 3 Uhr, Sicherung landet unter `/backups`):
 ```
-0 3 * * * /pfad/zu/slothtix/scripts/backup.sh /pfad/zu/slothtix/instance /backups
+0 3 * * * /pfad/zu/slothtix/scripts/backup-docker.sh /backups
 ```
 
-Das Skript nutzt die Backup-API von SQLite (nicht `cp`), sodass die Sicherung
-auch bei laufendem Betrieb in sich stimmig ist. Sicherungen, die älter als 14
-Tage sind, werden automatisch entfernt; ein abweichender Wert lässt sich als
-dritter Parameter übergeben.
+Die Sicherung nutzt die Backup-API von SQLite (nicht `cp`), sodass sie auch
+bei laufendem Betrieb in sich stimmig ist. Fehlt die Datenbank in der
+Sicherung, bricht das Skript mit einem Fehler ab, statt einen leeren Ordner
+zu hinterlassen; Cron schickt die Ausgabe dann per Mail an root. Sicherungen,
+die älter als 14 Tage sind, werden automatisch entfernt; ein abweichender
+Wert lässt sich als zweiter Parameter übergeben.
+
+`scripts/backup.sh` ist der Teil, der im Container läuft. Direkt auf dem Host
+taugt er nur für den Betrieb ohne Docker (`scripts/backup.sh instance
+/backups`).
+
+**Wiederherstellen:** SlothTix stoppen, Datei und Anhänge ins Volume
+zurückkopieren, wieder starten:
+```bash
+docker compose stop slothtix zusammenfassungen
+docker compose cp /backups/slothtix-backup-JJJJMMTT-HHMMSS/slothtix.db slothtix:/app/instance/slothtix.db
+docker compose cp /backups/slothtix-backup-JJJJMMTT-HHMMSS/uploads slothtix:/app/instance/
+docker compose run --rm --no-deps --user root slothtix sh -c \
+    "rm -f /app/instance/slothtix.db-wal /app/instance/slothtix.db-shm && chown -R 10001:10001 /app/instance"
+docker compose start slothtix zusammenfassungen
+```
+Der vorletzte Schritt ist nötig: Ein liegengebliebenes Write-Ahead-Log der
+alten Datenbank würde sonst auf die zurückgespielte angewendet, und
+`docker compose cp` legt die Dateien als root an, sodass die App sie nicht
+beschreiben könnte.
 
 ## 11. Testdaten vor dem Produktivstart entfernen
 
@@ -203,7 +236,8 @@ docker compose exec slothtix flask tickets-purge --alle --ja --verwaiste-dateien
 
 Gelöscht werden mit jedem Ticket auch dessen Kommentare, Historie und Anhänge
 inklusive der Dateien auf der Platte. Das ist **nicht rückgängig zu machen** –
-vorher einmal `scripts/backup.sh` laufen lassen (siehe Abschnitt 10).
+vorher einmal `scripts/backup-docker.sh /backups` laufen lassen (siehe
+Abschnitt 10).
 
 Nebeneffekt, meist erwünscht: Sind alle Tickets gelöscht, beginnt die
 Ticket-Nummerierung wieder bei 1.
@@ -287,4 +321,5 @@ docker compose up -d --build
 **Daten sichern/wiederherstellen:** Die SQLite-Datenbank und Uploads liegen
 in einem benannten Docker-Volume (`slothtix-instance`), das Neustarts und
 Image-Updates übersteht. Nur `docker compose down -v` löscht es – niemals
-ohne Grund verwenden. Für portable Backups `scripts/backup.sh` nutzen.
+ohne Grund verwenden. Für portable Backups `scripts/backup-docker.sh` nutzen
+(siehe Abschnitt 10).

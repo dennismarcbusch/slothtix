@@ -1,7 +1,9 @@
 #!/bin/sh
 # Sichert die SQLite-Datenbank und die Anhänge in ein Zielverzeichnis mit
-# Zeitstempel. Für den produktiven Betrieb per Cron einplanen, z.B. täglich:
-#   0 3 * * * /app/scripts/backup.sh /app/instance /backups
+# Zeitstempel. Im Docker-Betrieb liegen die Daten im Volume und sind vom
+# Host aus nicht erreichbar - dort scripts/backup-docker.sh verwenden, das
+# dieses Skript im Container aufruft. Direkt nur ohne Docker, z.B.:
+#   scripts/backup.sh instance /backups
 #
 # Optionaler dritter Parameter: Anzahl der Tage, die alte Sicherungen
 # aufbewahrt werden (Standard 14). Ältere werden entfernt.
